@@ -25,6 +25,8 @@ A booking system where **hosts** post events and **clients** buy tickets.
 
 Node.js 22.5+ · Express 5 · EJS server-rendered views · SQLite through Node's built-in `node:sqlite` (no native build step).
 
+Prices are in pounds sterling (stored in pence). Event times are entered and shown in UK time (GMT/BST), whatever timezone the server runs in. Both are set in `src/format.js`.
+
 ## Getting started
 
 ```bash

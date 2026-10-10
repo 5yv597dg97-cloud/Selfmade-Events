@@ -16,8 +16,8 @@
         <td><%= format.dateTime(e.starts_at) %></td>
         <td><span class="badge badge-<%= e.status %>"><%= e.status %></span></td>
         <td><%= e.sold %> / <%= e.capacity %></td>
-        <td><%= format.money(e.revenue_cents).replace('Free', '$0.00') %></td>
-        <td class="actions">
+        <td><%= format.money(e.revenue_cents, { free: false }) %></td>
+        <td><div class="actions">
           <% if (e.status !== 'cancelled') { %><a href="/host/events/<%= e.id %>/edit">Edit</a><% } %>
           <a href="/host/events/<%= e.id %>/attendees">Attendees</a>
           <% if (e.status === 'draft') { %>
@@ -32,7 +32,7 @@
               <button class="link danger">Cancel</button>
             </form>
           <% } %>
-        </td>
+        </div></td>
       </tr>
     <% } %>
     </tbody>

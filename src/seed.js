@@ -2,14 +2,15 @@
 // Usage: npm run seed   (uses DATABASE_PATH or selfmade-events.db)
 import bcrypt from 'bcryptjs';
 import { openDb, transaction } from './db.js';
+import { parseInputDateTime, toInputDateTime } from './format.js';
 
 const db = openDb(process.env.DATABASE_PATH ?? 'selfmade-events.db');
 const hash = bcrypt.hashSync('password123', 10);
 const day = 24 * 60 * 60 * 1000;
+// `hour` is UK time on the day `n` days from now.
 const inDays = (n, hour) => {
-  const d = new Date(Date.now() + n * day);
-  d.setHours(hour, 0, 0, 0);
-  return d.toISOString();
+  const date = toInputDateTime(new Date(Date.now() + n * day).toISOString()).slice(0, 10);
+  return parseInputDateTime(`${date}T${String(hour).padStart(2, '0')}:00`).toISOString();
 };
 
 transaction(db, () => {
@@ -22,12 +23,12 @@ transaction(db, () => {
   const addEvent = db.prepare("INSERT INTO events (host_id, title, description, venue, starts_at, status) VALUES (?, ?, ?, ?, ?, 'published')");
   const addType = db.prepare('INSERT INTO ticket_types (event_id, name, price_cents, capacity) VALUES (?, ?, ?, ?)');
   const events = [
-    ['Rooftop Jazz Night', 'Live jazz trio, city views and signature cocktails.', 'Skyline Terrace, 200 Main St', inDays(7, 19),
-      [['General admission', 2500, 120], ['VIP table', 9000, 10]]],
-    ['Startup Pitch Breakfast', 'Five founders, five minutes each, unlimited coffee.', 'The Hub, 45 Market St', inDays(14, 8),
+    ['Rooftop Jazz Night', 'Live jazz trio, city views and signature cocktails.', 'Skyline Terrace, 20 Bankside, London SE1', inDays(7, 19),
+      [['General admission', 2000, 120], ['VIP table', 7500, 10]]],
+    ['Startup Pitch Breakfast', 'Five founders, five minutes each, unlimited tea and coffee.', 'The Hub, 45 Old Street, London EC1', inDays(14, 8),
       [['Attendee', 0, 80]]],
-    ['Pottery Workshop for Beginners', 'Hands-on wheel throwing. All materials included.', 'Clay Studio, 12 Elm Ave', inDays(21, 14),
-      [['Workshop seat', 6500, 12]]],
+    ['Pottery Workshop for Beginners', 'Hands-on wheel throwing. All materials included.', 'Clay Studio, 12 Elm Row, Edinburgh', inDays(21, 14),
+      [['Workshop seat', 5500, 12]]],
   ];
   for (const [title, description, venue, startsAt, types] of events) {
     const id = Number(addEvent.run(hostId, title, description, venue, startsAt).lastInsertRowid);

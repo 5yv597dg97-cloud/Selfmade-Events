@@ -18,7 +18,7 @@
         <div class="type-row">
           <% if (t.id) { %><input type="hidden" name="types[<%= i %>][id]" value="<%= t.id %>"><% } %>
           <label>Name <input name="types[<%= i %>][name]" value="<%= t.name %>" placeholder="General admission"></label>
-          <label>Price ($) <input name="types[<%= i %>][price]" value="<%= t.price %>" inputmode="decimal" placeholder="0.00"></label>
+          <label>Price (£) <input name="types[<%= i %>][price]" value="<%= t.price %>" inputmode="decimal" placeholder="0.00"></label>
           <label>Capacity <input name="types[<%= i %>][capacity]" value="<%= t.capacity %>" inputmode="numeric" placeholder="100"></label>
           <% if (t.id) { %>
             <% if (t.sold > 0) { %><span class="muted small"><%= t.sold %> sold</span>
@@ -43,7 +43,7 @@
 <template id="type-template">
   <div class="type-row">
     <label>Name <input name="types[__i__][name]" placeholder="VIP"></label>
-    <label>Price ($) <input name="types[__i__][price]" inputmode="decimal" placeholder="0.00"></label>
+    <label>Price (£) <input name="types[__i__][price]" inputmode="decimal" placeholder="0.00"></label>
     <label>Capacity <input name="types[__i__][capacity]" inputmode="numeric" placeholder="100"></label>
   </div>
 </template>

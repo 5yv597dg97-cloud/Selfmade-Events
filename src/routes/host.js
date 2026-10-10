@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { transaction } from '../db.js';
 import { requireHost } from '../middleware.js';
-import { parseCents, toInputDateTime } from '../format.js';
+import { parseCents, parseInputDateTime, toInputDateTime } from '../format.js';
 
 const MAX_TYPES = 10;
 
@@ -19,7 +19,7 @@ function parseEventForm(body, existing = new Map()) {
   if (values.title.length > 150) errors.push('Title must be 150 characters or fewer.');
   if (!values.venue) errors.push('Venue is required.');
   if (values.description.length > 5000) errors.push('Description must be 5000 characters or fewer.');
-  const startsAt = new Date(values.starts_at);
+  const startsAt = parseInputDateTime(values.starts_at);
   if (!values.starts_at || Number.isNaN(startsAt.getTime())) errors.push('Enter a valid start date and time.');
   else if (startsAt < new Date()) errors.push('Start time must be in the future.');
   if (values.image_url && !/^https?:\/\/\S+$/i.test(values.image_url)) errors.push('Image URL must start with http:// or https://');
@@ -49,7 +49,7 @@ function parseEventForm(body, existing = new Map()) {
     t.capacity_n = Number(t.capacity);
     const label = t.name || 'Ticket type';
     if (!t.name) errors.push('Every ticket type needs a name.');
-    if (Number.isNaN(t.price_cents)) errors.push(`${label}: price must be a number like 25 or 12.50.`);
+    if (Number.isNaN(t.price_cents)) errors.push(`${label}: price must be an amount in pounds, like 25 or 12.50.`);
     if (!Number.isInteger(t.capacity_n) || t.capacity_n < 1 || t.capacity_n > 100000) {
       errors.push(`${label}: capacity must be a whole number between 1 and 100000.`);
     } else if (t.capacity_n < t.sold) {

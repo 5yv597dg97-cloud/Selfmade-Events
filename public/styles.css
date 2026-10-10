@@ -96,7 +96,7 @@ table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
 th { font-size: .85rem; color: var(--muted); font-weight: 600; }
 tr:last-child td { border-bottom: 0; }
-td.actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.actions { display: flex; gap: 12px; flex-wrap: wrap; }
 
 .order { margin-bottom: 16px; }
 .order-head { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
