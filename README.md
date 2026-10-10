@@ -23,7 +23,7 @@ A booking system where **hosts** post events and **clients** buy tickets.
 
 ## Stack
 
-Node.js 22.5+ · Express 5 · EJS server-rendered views · SQLite through Node's built-in `node:sqlite` (no native build step).
+Node.js 22.13+ · Express 5 · EJS server-rendered views · SQLite through Node's built-in `node:sqlite` (no native build step).
 
 Prices are in pounds sterling (stored in pence). Event times are entered and shown in UK time (GMT/BST), whatever timezone the server runs in. Both are set in `src/format.js`.
 
@@ -50,11 +50,33 @@ Run the tests with `npm test`.
 | `SESSION_SECRET` | random per boot      | Cookie signing secret (required in production)  |
 | `NODE_ENV`       | –                    | `production` turns on secure cookies            |
 
+## Deploying to Render
+
+The repo includes a Render Blueprint (`render.yaml`) that sets everything up:
+
+1. Sign in at [render.com](https://render.com) with GitHub, and give Render access to this repository.
+2. In the dashboard choose **New → Blueprint**, pick this repository, and click **Apply**.
+3. Render builds the app and gives you a URL like `https://selfmade-events.onrender.com`. Every push to the deployed branch redeploys automatically.
+
+What the Blueprint creates:
+- A **Starter** web service (about $7/month) in **Frankfurt**, Render's closest region to the UK
+- A 1 GB **persistent disk** at `/var/data` that holds the SQLite database (users, events, orders and login sessions). It survives deploys and restarts
+- A random `SESSION_SECRET`, plus `NODE_ENV=production` and `DATABASE_PATH`
+- A health check at `/healthz`
+
+Notes:
+- Render's free plan has no persistent disk, so all data would be wiped on every deploy. That's why the Blueprint uses Starter.
+- With a disk attached, the service runs as a single instance, and each deploy has a few seconds of downtime. That's fine at this scale; move to Postgres if you outgrow it.
+- **Custom domain:** in the service's **Settings → Custom Domains**, add your domain and create the DNS records Render shows you. Render issues the HTTPS certificate automatically.
+- **Backups:** Render takes daily snapshots of persistent disks. You can also download the database file from the service's **Shell**.
+- Render deploys the repository's default branch unless you choose another branch in the Blueprint.
+
 ## Project layout
 
 ```
 src/
   app.js          Express app factory (createApp({ db, payments }))
+  session-store.js  Login sessions stored in SQLite
   server.js       Entry point
   seed.js         Demo data
   db.js           Schema + transaction helper
@@ -72,6 +94,5 @@ test/             node:test + supertest integration tests
 ## Before going to production
 
 - **Real payments:** add a provider such as Stripe Checkout by implementing `charge`/`refund` in `src/payments.js`. For hosted checkout, keep orders `pending` and confirm them from a webhook.
-- **Session store:** the default in-memory store resets on restart and only works with a single process. Use a persistent store (e.g. Redis or SQLite).
 - **Email:** send order confirmations and cancellation notices.
 - **Host payouts:** e.g. Stripe Connect, so hosts receive their revenue directly.

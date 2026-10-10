@@ -5,6 +5,7 @@ import express from 'express';
 import session from 'express-session';
 import { openDb } from './db.js';
 import { mockPayments } from './payments.js';
+import { SqliteSessionStore } from './session-store.js';
 import { loadUser, csrf, flash } from './middleware.js';
 import * as format from './format.js';
 import authRoutes from './routes/auth.js';
@@ -20,17 +21,25 @@ export function createApp({
   sessionSecret = process.env.SESSION_SECRET ?? crypto.randomBytes(32).toString('hex'),
 } = {}) {
   const app = express();
+  const production = process.env.NODE_ENV === 'production';
+  // Behind Render's (or any) HTTPS proxy: trust X-Forwarded-Proto so secure cookies work.
+  if (production) app.set('trust proxy', 1);
   app.set('view engine', 'ejs');
   app.set('views', path.join(root, 'views'));
   app.locals.format = format;
 
+  app.get('/healthz', (req, res) => {
+    db.prepare('SELECT 1').get();
+    res.type('text').send('ok');
+  });
   app.use(express.static(path.join(root, 'public')));
   app.use(express.urlencoded({ extended: true, limit: '100kb' }));
   app.use(session({
     secret: sessionSecret,
+    store: new SqliteSessionStore(db),
     resave: false,
     saveUninitialized: true,
-    cookie: { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' },
+    cookie: { httpOnly: true, sameSite: 'lax', secure: production, maxAge: 14 * 24 * 60 * 60 * 1000 },
   }));
   app.use(flash);
   app.use(loadUser(db));

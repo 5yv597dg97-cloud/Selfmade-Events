@@ -1,0 +1,25 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+# In the Render dashboard: New > Blueprint, then pick this repository.
+services:
+  - type: web
+    name: selfmade-events
+    runtime: node
+    plan: starter            # persistent disks need a paid instance
+    region: frankfurt        # closest Render region to the UK
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeploy: true
+    disk:
+      name: data
+      mountPath: /var/data   # SQLite database lives here and survives deploys
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_PATH
+        value: /var/data/selfmade-events.db
+      - key: SESSION_SECRET
+        generateValue: true

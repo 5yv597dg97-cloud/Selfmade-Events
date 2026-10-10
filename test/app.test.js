@@ -219,3 +219,19 @@ test('login redirects only to local paths', async () => {
   const res = await agent.post('/login').type('form').send({ _csrf, email: 'client@test.com', password: 'password123', next: '//evil.com' });
   assert.equal(res.headers.location, '/');
 });
+
+test('health check responds ok', async () => {
+  const res = await request(app).get('/healthz');
+  assert.equal(res.status, 200);
+  assert.equal(res.text, 'ok');
+});
+
+test('logins survive an app restart (sessions stored in the database)', async () => {
+  const client = await signUp('client');
+  const cookie = (await client.get('/my-tickets')).request.cookies;
+  // A fresh app instance on the same database, as after a redeploy.
+  const restarted = createApp({ db, sessionSecret: 'test' });
+  const res = await request(restarted).get('/my-tickets').set('Cookie', cookie);
+  assert.equal(res.status, 200);
+  assert.match(res.text, /My tickets/);
+});
