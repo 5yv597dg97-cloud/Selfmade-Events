@@ -1,0 +1,42 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <h1>Your events</h1>
+  <a class="button" href="/host/events/new">+ New event</a>
+</div>
+<% if (!events.length) { %>
+  <p class="empty">You haven't created any events yet. <a href="/host/events/new">Create your first event</a>.</p>
+<% } else { %>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Event</th><th>Date</th><th>Status</th><th>Sold</th><th>Revenue</th><th></th></tr></thead>
+    <tbody>
+    <% for (const e of events) { %>
+      <tr>
+        <td><a href="/events/<%= e.id %>"><%= e.title %></a><br><span class="muted small"><%= e.venue %></span></td>
+        <td><%= format.dateTime(e.starts_at) %></td>
+        <td><span class="badge badge-<%= e.status %>"><%= e.status %></span></td>
+        <td><%= e.sold %> / <%= e.capacity %></td>
+        <td><%= format.money(e.revenue_cents).replace('Free', '$0.00') %></td>
+        <td class="actions">
+          <% if (e.status !== 'cancelled') { %><a href="/host/events/<%= e.id %>/edit">Edit</a><% } %>
+          <a href="/host/events/<%= e.id %>/attendees">Attendees</a>
+          <% if (e.status === 'draft') { %>
+            <form method="post" action="/host/events/<%= e.id %>/publish" class="inline">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button class="link">Publish</button>
+            </form>
+          <% } %>
+          <% if (e.status !== 'cancelled') { %>
+            <form method="post" action="/host/events/<%= e.id %>/cancel" class="inline" onsubmit="return confirm('Cancel this event and refund every buyer?')">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button class="link danger">Cancel</button>
+            </form>
+          <% } %>
+        </td>
+      </tr>
+    <% } %>
+    </tbody>
+  </table>
+  </div>
+<% } %>
+<%- include('../partials/footer') %>

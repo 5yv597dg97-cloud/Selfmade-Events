@@ -1,0 +1,36 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <div>
+    <h1><%= event.title %></h1>
+    <p class="muted"><%= format.dateTime(event.starts_at) %> · <%= checkedIn %> of <%= attendees.length %> checked in</p>
+  </div>
+  <a href="/host">← Dashboard</a>
+</div>
+<% if (event.status === 'published') { %>
+<form method="post" action="/host/events/<%= event.id %>/checkin" class="card checkin">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <label>Check in a ticket <input name="code" required autofocus autocomplete="off" placeholder="Ticket code"></label>
+  <button class="button">Check in</button>
+</form>
+<% } %>
+<% if (!attendees.length) { %>
+  <p class="empty">No tickets sold yet.</p>
+<% } else { %>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Name</th><th>Email</th><th>Ticket</th><th>Code</th><th>Status</th></tr></thead>
+    <tbody>
+    <% for (const a of attendees) { %>
+      <tr>
+        <td><%= a.buyer_name %></td>
+        <td><%= a.buyer_email %></td>
+        <td><%= a.type_name %></td>
+        <td><code><%= a.code %></code></td>
+        <td><%= a.checked_in_at ? 'Checked in' : '—' %></td>
+      </tr>
+    <% } %>
+    </tbody>
+  </table>
+  </div>
+<% } %>
+<%- include('../partials/footer') %>

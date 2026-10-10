@@ -1,0 +1,29 @@
+<%- include('../partials/header') %>
+<section class="hero">
+  <h1>Find your next event</h1>
+  <form method="get" action="/" class="search">
+    <input type="search" name="q" placeholder="Search by name, venue or description" value="<%= q %>" aria-label="Search events">
+    <button class="button">Search</button>
+  </form>
+</section>
+<% if (!events.length) { %>
+  <p class="empty"><%= q ? `No events match “${q}”.` : 'No upcoming events yet — check back soon.' %></p>
+<% } else { %>
+  <div class="grid">
+    <% for (const e of events) { %>
+      <a class="event-card" href="/events/<%= e.id %>">
+        <% if (e.image_url) { %><img src="<%= e.image_url %>" alt="" loading="lazy"><% } else { %><div class="placeholder"><%= e.title.slice(0, 1) %></div><% } %>
+        <div class="body">
+          <h2><%= e.title %></h2>
+          <p class="muted"><%= format.dateTime(e.starts_at) %></p>
+          <p class="muted"><%= e.venue %></p>
+          <p class="price">
+            <% if (e.remaining <= 0) { %><span class="badge badge-soldout">Sold out</span>
+            <% } else { %>From <%= format.money(e.min_price ?? 0) %><% } %>
+          </p>
+        </div>
+      </a>
+    <% } %>
+  </div>
+<% } %>
+<%- include('../partials/footer') %>

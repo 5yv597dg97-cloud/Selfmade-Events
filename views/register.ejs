@@ -1,0 +1,19 @@
+<%- include('partials/header') %>
+<section class="card narrow">
+  <h1>Create your account</h1>
+  <%- include('partials/errors') %>
+  <form method="post" action="/register" class="stack">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <fieldset class="role-picker">
+      <legend>I want to</legend>
+      <label><input type="radio" name="role" value="client" <%= values.role !== 'host' ? 'checked' : '' %>> Buy tickets</label>
+      <label><input type="radio" name="role" value="host" <%= values.role === 'host' ? 'checked' : '' %>> Host events</label>
+    </fieldset>
+    <label>Name <input name="name" required maxlength="100" value="<%= values.name || '' %>"></label>
+    <label>Email <input type="email" name="email" required value="<%= values.email || '' %>"></label>
+    <label>Password <input type="password" name="password" required minlength="8"></label>
+    <button class="button">Create account</button>
+  </form>
+  <p class="muted">Already have an account? <a href="/login">Log in</a></p>
+</section>
+<%- include('partials/footer') %>

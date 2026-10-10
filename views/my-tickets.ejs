@@ -1,0 +1,32 @@
+<%- include('partials/header') %>
+<h1>My tickets</h1>
+<% if (!orders.length) { %>
+  <p class="empty">You haven't booked anything yet. <a href="/">Browse events</a></p>
+<% } %>
+<% for (const o of orders) { %>
+  <section class="card order" id="order-<%= o.id %>">
+    <div class="order-head">
+      <div>
+        <h2><a href="/events/<%= o.event_id %>"><%= o.title %></a></h2>
+        <p class="muted"><%= format.dateTime(o.starts_at) %> · <%= o.venue %></p>
+      </div>
+      <div class="right">
+        <% if (o.status === 'refunded') { %><span class="badge badge-cancelled">Refunded</span><% } else { %><span class="badge badge-published">Confirmed</span><% } %>
+        <p class="muted">Order #<%= o.id %> · <%= format.money(o.total_cents) %></p>
+      </div>
+    </div>
+    <% if (o.status === 'paid') { %>
+      <ul class="ticket-list">
+        <% for (const t of o.tickets) { %>
+          <li class="ticket">
+            <span><%= t.type_name %></span>
+            <code class="code"><%= t.code %></code>
+            <% if (t.checked_in_at) { %><span class="badge">Checked in</span><% } %>
+          </li>
+        <% } %>
+      </ul>
+      <p class="muted small">Show your ticket code at the door.</p>
+    <% } %>
+  </section>
+<% } %>
+<%- include('partials/footer') %>

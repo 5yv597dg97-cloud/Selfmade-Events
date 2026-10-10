@@ -1,0 +1,47 @@
+<%- include('../partials/header') %>
+<article class="event-detail">
+  <% if (event.image_url) { %><img class="banner" src="<%= event.image_url %>" alt=""><% } %>
+  <div class="columns">
+    <div>
+      <% if (event.status === 'cancelled') { %><div class="flash flash-error">This event has been cancelled. All ticket holders have been refunded.</div><% } %>
+      <% if (event.status === 'draft') { %><div class="flash flash-info">Draft preview — only you can see this page.</div><% } %>
+      <h1><%= event.title %></h1>
+      <p class="meta"><strong><%= format.dateTime(event.starts_at) %></strong><br><%= event.venue %><br><span class="muted">Hosted by <%= event.host_name %></span></p>
+      <div class="description"><%= event.description %></div>
+    </div>
+    <aside class="card">
+      <h2>Tickets</h2>
+      <% const onSale = event.status === 'published' && new Date(event.starts_at) > new Date(); %>
+      <form method="post" action="/events/<%= event.id %>/checkout" class="stack" id="checkout">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <% for (const t of types) { const left = t.capacity - t.sold; %>
+          <div class="ticket-row">
+            <div>
+              <strong><%= t.name %></strong><br>
+              <span class="muted"><%= format.money(t.price_cents) %> · <%= left > 0 ? `${left} left` : 'Sold out' %></span>
+            </div>
+            <% if (onSale && left > 0) { %>
+              <select name="qty_<%= t.id %>" data-price="<%= t.price_cents %>" aria-label="Quantity for <%= t.name %>">
+                <% for (let i = 0; i <= Math.min(max, left); i++) { %><option value="<%= i %>"><%= i %></option><% } %>
+              </select>
+            <% } %>
+          </div>
+        <% } %>
+        <% if (onSale && types.some((t) => t.capacity > t.sold)) { %>
+          <p class="total">Total: <strong id="total">$0.00</strong></p>
+          <% if (user) { %>
+            <button class="button">Buy tickets</button>
+          <% } else { %>
+            <a class="button" href="/login?next=/events/<%= event.id %>">Log in to buy</a>
+          <% } %>
+        <% } else if (!onSale) { %>
+          <p class="muted">Tickets are not on sale.</p>
+        <% } else { %>
+          <p class="muted">This event is sold out.</p>
+        <% } %>
+      </form>
+    </aside>
+  </div>
+</article>
+<script src="/checkout.js"></script>
+<%- include('../partials/footer') %>

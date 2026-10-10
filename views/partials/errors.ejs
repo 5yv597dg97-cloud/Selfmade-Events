@@ -1,0 +1,5 @@
+<% if (errors && errors.length) { %>
+  <div class="flash flash-error" role="alert">
+    <ul><% for (const e of errors) { %><li><%= e %></li><% } %></ul>
+  </div>
+<% } %>

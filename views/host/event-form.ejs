@@ -1,0 +1,51 @@
+<%- include('../partials/header') %>
+<section class="card">
+  <h1><%= event ? 'Edit event' : 'Create an event' %></h1>
+  <%- include('../partials/errors') %>
+  <form method="post" action="<%= event ? `/host/events/${event.id}` : '/host/events' %>" class="stack">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label>Title <input name="title" required maxlength="150" value="<%= values.title %>"></label>
+    <label>Description <textarea name="description" rows="6" maxlength="5000"><%= values.description %></textarea></label>
+    <div class="two">
+      <label>Venue / address <input name="venue" required value="<%= values.venue %>"></label>
+      <label>Starts at <input type="datetime-local" name="starts_at" required value="<%= values.starts_at %>"></label>
+    </div>
+    <label><span>Image URL <span class="muted">(optional)</span></span> <input type="url" name="image_url" placeholder="https://…" value="<%= values.image_url %>"></label>
+
+    <h2>Ticket types</h2>
+    <div id="types">
+      <% types.forEach((t, i) => { %>
+        <div class="type-row">
+          <% if (t.id) { %><input type="hidden" name="types[<%= i %>][id]" value="<%= t.id %>"><% } %>
+          <label>Name <input name="types[<%= i %>][name]" value="<%= t.name %>" placeholder="General admission"></label>
+          <label>Price ($) <input name="types[<%= i %>][price]" value="<%= t.price %>" inputmode="decimal" placeholder="0.00"></label>
+          <label>Capacity <input name="types[<%= i %>][capacity]" value="<%= t.capacity %>" inputmode="numeric" placeholder="100"></label>
+          <% if (t.id) { %>
+            <% if (t.sold > 0) { %><span class="muted small"><%= t.sold %> sold</span>
+            <% } else { %><label class="check"><input type="checkbox" name="types[<%= i %>][remove]" value="1" <%= t.remove ? 'checked' : '' %>> Remove</label><% } %>
+          <% } %>
+        </div>
+      <% }) %>
+    </div>
+    <button type="button" class="button secondary small" id="add-type">+ Add ticket type</button>
+
+    <div class="form-actions">
+      <% if (!event) { %>
+        <button class="button secondary" name="publish" value="0">Save as draft</button>
+        <button class="button" name="publish" value="1">Publish event</button>
+      <% } else { %>
+        <button class="button">Save changes</button>
+      <% } %>
+      <a href="/host">Cancel</a>
+    </div>
+  </form>
+</section>
+<template id="type-template">
+  <div class="type-row">
+    <label>Name <input name="types[__i__][name]" placeholder="VIP"></label>
+    <label>Price ($) <input name="types[__i__][price]" inputmode="decimal" placeholder="0.00"></label>
+    <label>Capacity <input name="types[__i__][capacity]" inputmode="numeric" placeholder="100"></label>
+  </div>
+</template>
+<script src="/event-form.js"></script>
+<%- include('../partials/footer') %>

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= title %> · Selfmade Events</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="container nav">
+    <a class="brand" href="/">Selfmade Events</a>
+    <nav>
+      <a href="/">Browse</a>
+      <% if (user) { %>
+        <a href="/my-tickets">My tickets</a>
+        <% if (user.role === 'host') { %><a href="/host">Host dashboard</a><% } %>
+        <form method="post" action="/logout" class="inline">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button class="link">Log out (<%= user.name %>)</button>
+        </form>
+      <% } else { %>
+        <a href="/login">Log in</a>
+        <a class="button small" href="/register">Sign up</a>
+      <% } %>
+    </nav>
+  </div>
+</header>
+<main class="container">
+<% for (const f of flash) { %>
+  <div class="flash flash-<%= f.type %>" role="status"><%= f.message %></div>
+<% } %>
