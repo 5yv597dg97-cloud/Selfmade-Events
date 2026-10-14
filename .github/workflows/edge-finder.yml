@@ -5,6 +5,16 @@ on:
     # GitHub runs schedules in UTC: 9am and 5pm in UK winter, 10am and 6pm in summer.
     - cron: '7 9,17 * * *'
   workflow_dispatch: # "Run workflow" button for a run on demand
+    inputs:
+      mode:
+        description: 'scan = the normal run; preview = every match today sent to Telegram'
+        type: choice
+        options: [scan, preview]
+        default: scan
+      sports:
+        description: 'For preview: competitions, e.g. soccer_uefa_champs_league or soccer_epl,soccer_spain_la_liga'
+        type: string
+        default: soccer_uefa_champs_league
 
 concurrency:
   group: edge-finder
@@ -57,7 +67,14 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           EDGE_BANKROLL: ${{ vars.EDGE_BANKROLL || '100' }}
-        run: node --disable-warning=ExperimentalWarning src/cli.js run
+          MODE: ${{ inputs.mode || 'scan' }}
+          SPORTS: ${{ inputs.sports }}
+        run: |
+          if [ "$MODE" = preview ]; then
+            node --disable-warning=ExperimentalWarning src/cli.js preview --telegram --sports "$SPORTS"
+          else
+            node --disable-warning=ExperimentalWarning src/cli.js run
+          fi
 
       # Saved even if the run failed part-way, so logged bets and sent picks aren't lost.
       - name: Save bet history

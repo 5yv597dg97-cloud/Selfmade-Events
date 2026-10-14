@@ -6,6 +6,12 @@ export const when = (iso) => new Date(iso).toLocaleString('en-GB', {
   timeZone: 'Europe/London', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
 });
 
+const ICON = {
+  tennis: '🎾', mma: '🥊', soccer: '⚽', basketball: '🏀', americanfootball: '🏈', icehockey: '🏒',
+  rugbyunion: '🏉', rugbyleague: '🏉', cricket: '🏏',
+};
+export const icon = (sport = '') => ICON[sport.split('_')[0]] ?? '🎯';
+
 /** Calendar date in UK time, for "per day" limits. */
 export const ukDate = (d) => new Date(d).toLocaleDateString('en-GB', { timeZone: 'Europe/London' });
 

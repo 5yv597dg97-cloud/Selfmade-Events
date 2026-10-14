@@ -10,6 +10,7 @@ import { telegram } from './telegram.js';
 import { runOnce, linkChat, HELP as BOT_HELP } from './run.js';
 import { findDoubles, fractional } from './doubles.js';
 import { findScorelineDoubles } from './scorelines.js';
+import { previewMatches, previewText } from './preview.js';
 import { gbp, pct, when, selection } from './format.js';
 
 const LAST_SCAN = '.last-scan.json';
@@ -27,6 +28,7 @@ Usage: npm run edge -- <command> [options]
   settle <bet> <result>  Set a result by hand: won, lost, push, void, half-won, half-lost
   report               Profit, ROI, and closing line value
   sports               List sport keys your API key can query
+  preview              Every match today with chances, best prices and likeliest scores (--sports, --telegram)
   run                  The scheduled job: Telegram taps/commands, settle, scan, send picks
   telegram-setup       Show your Telegram chat ID (message your bot first)
 
@@ -48,7 +50,7 @@ function parseArgs(argv) {
     if (!a.startsWith('--')) { positional.push(a); continue; }
     const key = a.slice(2);
     if (key === 'all-per-event') { flags['one-per-event'] = false; continue; }
-    if (['consensus', 'json'].includes(key)) { flags[key] = true; continue; }
+    if (['consensus', 'json', 'telegram'].includes(key)) { flags[key] = true; continue; }
     const value = argv[++i];
     if (value === undefined) throw new Error(`--${key} needs a value`);
     flags[key] = value;
@@ -95,6 +97,23 @@ async function main() {
   const cfg = loadConfig(process.env, flags);
   const now = flags.now ? new Date(flags.now) : new Date();
   if (Number.isNaN(now.getTime())) throw new Error('--now must be an ISO date');
+
+  if (command === 'preview') {
+    // Look at the whole card, so don't skip anything for the credit budget.
+    const pcfg = { ...cfg, creditBudget: false };
+    const events = await loadEvents(pcfg, flags, cfg.sports, now.getTime());
+    const messages = previewText(previewMatches(events, pcfg, now.getTime(), { today: !flags.hours, hours: Number(flags.hours) || 24 }), cfg);
+    if (flags.telegram) {
+      const store = openStore(cfg.db);
+      const chatId = cfg.telegramChatId || store.getMeta('chat_id');
+      store.close();
+      if (!cfg.telegramToken || !chatId) throw new Error('Telegram isn\'t linked yet: run the normal workflow first');
+      const bot = telegram({ token: cfg.telegramToken, chatId });
+      for (const m of messages) await bot.send(m);
+    }
+    for (const m of messages) console.log(m.replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'), '\n');
+    return;
+  }
 
   if (command === 'sports') {
     const { data } = await fetchSports({ apiKey: cfg.apiKey });

@@ -25,7 +25,7 @@ export function marketLines(market, event) {
 const minutesSince = (iso, now) => (now - new Date(iso).getTime()) / 60000;
 
 /** Collects every fresh price per market/line: Map<"market|line", {market, line, books: Map<bookKey, {...}>}>. */
-function collectLines(event, cfg, now) {
+export function collectLines(event, cfg, now) {
   const all = new Map();
   for (const book of event.bookmakers ?? []) {
     for (const market of book.markets ?? []) {

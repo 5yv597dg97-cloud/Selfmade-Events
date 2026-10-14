@@ -7,13 +7,8 @@ import { findDoubles, fractional } from './doubles.js';
 import { findScorelineDoubles } from './scorelines.js';
 import { manualResult } from './settle.js';
 import { esc } from './telegram.js';
-import { money, pct, when, selection, ukDate } from './format.js';
+import { money, pct, when, selection, ukDate, icon } from './format.js';
 
-const ICON = {
-  tennis: '🎾', mma: '🥊', soccer: '⚽', basketball: '🏀', americanfootball: '🏈', icehockey: '🏒',
-  rugbyunion: '🏉', rugbyleague: '🏉', cricket: '🏏',
-};
-const icon = (sport) => ICON[sport.split('_')[0]] ?? '🎯';
 
 export const HELP = `<b>Commands</b>
 /placed &lt;pick&gt; [odds] [stake]: log a pick, e.g. <code>/placed 3a2fce56 1.16 2</code> if you got a different price
