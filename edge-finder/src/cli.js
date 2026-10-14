@@ -7,7 +7,7 @@ import { openStore, report } from './store.js';
 import { manualResult } from './settle.js';
 import { loadEvents as fetchEvents, settleFinished } from './events.js';
 import { telegram } from './telegram.js';
-import { runOnce } from './run.js';
+import { runOnce, linkChat, HELP as BOT_HELP } from './run.js';
 import { gbp, pct, when, selection } from './format.js';
 
 const LAST_SCAN = '.last-scan.json';
@@ -77,7 +77,7 @@ function printPicks(picks, cfg) {
     console.log(`#${i + 1} [${p.id}] ${p.home} v ${p.away}  · ${p.league} · ${when(p.commenceTime)}${flag}`);
     console.log(`    ${selection(p)} @ ${p.odds} with ${p.bookTitle}`);
     console.log(`    wins ${pct(p.fairProb)} of the time (fair odds ${p.fairOdds.toFixed(2)}, from ${p.fairSource}); needs ${pct(1 / p.odds)} to break even`);
-    console.log(`    edge +${pct(p.ev)}  ·  stake ${gbp.format(p.stake)} to win ${gbp.format(p.stake * (p.odds - 1))}`);
+    console.log(`    edge +${pct(p.ev)}  ·  stake ${gbp.format(p.stake)} to win ${gbp.format(p.stake * (p.odds - 1))}  ·  still worth it at ${p.minPrice} or better`);
     if (p.alsoAt.length) console.log(`    also value at: ${p.alsoAt.join(', ')}`);
     console.log('');
   });
@@ -128,8 +128,12 @@ async function main() {
   const store = openStore(cfg.db);
   try {
     if (command === 'run') {
-      if (!cfg.telegramToken || !cfg.telegramChatId) throw new Error('Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID (see README)');
-      const bot = telegram({ token: cfg.telegramToken, chatId: cfg.telegramChatId });
+      if (!cfg.telegramToken) throw new Error('Set TELEGRAM_BOT_TOKEN (see README)');
+      let chatId = cfg.telegramChatId;
+      let isNew = false;
+      if (!chatId) ({ chatId, isNew } = await linkChat(store, telegram({ token: cfg.telegramToken })));
+      const bot = telegram({ token: cfg.telegramToken, chatId });
+      if (isNew) await bot.send(`👋 Linked to this chat. Picks will arrive here around 9am and 5pm.\n\n${BOT_HELP}`);
       const r = await runOnce({ cfg, store, bot, now, fixture: flags.fixture, scoresFile: flags.scores });
       console.log(`Sent ${r.sent} picks, settled ${r.settled} bets, bankroll ${gbp.format(r.bankroll)}${r.paused ? ' (paused)' : ''}`);
       return;
@@ -145,7 +149,7 @@ async function main() {
       if (pick.suspicious && !flags.stake) throw new Error('That pick was flagged as a likely stale line. Check the price, then pass --stake to log it anyway');
       const stake = flags.stake ? Number(flags.stake) : pick.stake;
       if (!(odds > 1) || !(stake > 0)) throw new Error('Odds must be above 1 and stake above 0');
-      if (pick.fairProb * odds - 1 <= 0) console.warn(`Warning: at ${odds} this bet has no edge (fair odds ${pick.fairOdds.toFixed(2)})`);
+      if (odds < pick.minPrice) console.warn(`Warning: ${odds} is below the ${pick.minPrice} worth taking (fair odds ${pick.fairOdds.toFixed(2)})`);
       const id = store.addBet(pick, { odds, stake, now });
       console.log(`Logged bet ${id}: ${selection(pick)} @ ${odds} for ${gbp.format(stake)} with ${pick.bookTitle}`);
       return;

@@ -33,7 +33,7 @@ test('expands tennis_*, skips idle competitions, and names the bookmakers to sav
   const odds = calls.filter((u) => u.pathname.endsWith('/odds'));
   assert.deepEqual(odds.map((u) => u.pathname.split('/')[3]), ['tennis_atp_paris_masters', 'tennis_wta_finals', 'soccer_epl']);
   for (const u of odds) {
-    assert.equal(u.searchParams.get('bookmakers'), 'pinnacle,betfair_ex_uk,paddypower,betfair_sb_uk');
+    assert.equal(u.searchParams.get('bookmakers'), 'pinnacle,betfair_ex_uk,paddypower,betfair_sb_uk,coral,ladbrokes_uk');
     assert.equal(u.searchParams.get('regions'), null);
     assert.equal(u.searchParams.get('markets'), 'h2h');
   }

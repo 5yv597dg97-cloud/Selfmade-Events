@@ -25,6 +25,7 @@ const DEFAULTS = {
   consensus: false,
   minConsensusBooks: 5,
   onePerEvent: true,
+  maxPicksPerDay: 0, // 0 = no limit
   stopLossPct: 0.3, // pause once the bankroll has fallen this far from its starting point
   telegramToken: '',
   telegramChatId: '',
@@ -38,12 +39,13 @@ export const PROFILES = {
   safe: {
     sports: 'tennis_*,mma_mixed_martial_arts,soccer_epl',
     markets: 'h2h',
-    books: 'paddypower,betfair_sb_uk',
+    books: 'paddypower,betfair_sb_uk,coral,ladbrokes_uk',
     bankroll: 100,
     minProb: 0.75,
     minOdds: 1.1,
     maxOdds: 1.4,
     minEdge: 0.015,
+    maxPicksPerDay: 5,
   },
   value: {},
 };
@@ -54,7 +56,7 @@ const ENV = {
   maxStakePct: 'EDGE_MAX_STAKE_PCT', minEdge: 'EDGE_MIN_EDGE', maxEdge: 'EDGE_MAX_EDGE',
   minProb: 'EDGE_MIN_PROB', minOdds: 'EDGE_MIN_ODDS', maxOdds: 'EDGE_MAX_ODDS',
   maxStaleMinutes: 'EDGE_MAX_STALE_MINUTES', minLeadMinutes: 'EDGE_MIN_LEAD_MINUTES',
-  lookaheadHours: 'EDGE_LOOKAHEAD_HOURS',
+  lookaheadHours: 'EDGE_LOOKAHEAD_HOURS', maxPicksPerDay: 'EDGE_MAX_PICKS_PER_DAY',
   devigMethod: 'EDGE_DEVIG_METHOD', consensus: 'EDGE_CONSENSUS',
   minConsensusBooks: 'EDGE_MIN_CONSENSUS_BOOKS', onePerEvent: 'EDGE_ONE_PER_EVENT', db: 'EDGE_DB',
   stopLossPct: 'EDGE_STOP_LOSS_PCT', telegramToken: 'TELEGRAM_BOT_TOKEN', telegramChatId: 'TELEGRAM_CHAT_ID',

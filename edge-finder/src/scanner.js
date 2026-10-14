@@ -143,7 +143,9 @@ export function scan(events, cfg, now = Date.now()) {
     const s = pick.suspicious
       ? { f: 0, amount: 0 }
       : stake({ p: pick.fairProb, odds: pick.odds, bankroll: cfg.bankroll, fraction: cfg.kellyFraction, maxStakePct: cfg.maxStakePct });
-    return { ...pick, kelly: kellyFraction(pick.fairProb, pick.odds), stakeFraction: s.f, stake: s.amount, growth: logGrowth(pick.fairProb, pick.odds, s.f) };
+    // Lowest price that still clears the minimum edge, for when the odds drift before you bet.
+    const minPrice = Math.min(pick.odds, Math.ceil(((1 + cfg.minEdge) / pick.fairProb) * 100) / 100);
+    return { ...pick, minPrice, kelly: kellyFraction(pick.fairProb, pick.odds), stakeFraction: s.f, stake: s.amount, growth: logGrowth(pick.fairProb, pick.odds, s.f) };
   });
   picks.sort((a, b) => a.suspicious - b.suspicious || b.growth - a.growth);
 

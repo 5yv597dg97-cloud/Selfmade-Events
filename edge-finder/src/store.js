@@ -71,6 +71,12 @@ export function openStore(path) {
     recordPick(pick, at = new Date()) {
       db.prepare('INSERT OR IGNORE INTO picks (id, data, sent_at) VALUES (?, ?, ?)').run(pick.id, JSON.stringify(pick), at.toISOString());
     },
+    /** How many picks were sent on the same UK calendar day as `now`. */
+    picksSentOn(now, ukDate) {
+      const since = new Date(now.getTime() - 26 * 3600e3).toISOString();
+      const today = ukDate(now);
+      return db.prepare('SELECT sent_at FROM picks WHERE sent_at >= ?').all(since).filter((r) => ukDate(r.sent_at) === today).length;
+    },
     setPickStatus(id, status) {
       db.prepare('UPDATE picks SET status = ? WHERE id = ?').run(status, id);
     },

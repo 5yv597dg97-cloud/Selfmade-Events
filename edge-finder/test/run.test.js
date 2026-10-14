@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { loadConfig } from '../src/config.js';
 import { openStore } from '../src/store.js';
-import { runOnce } from '../src/run.js';
+import { runOnce, linkChat } from '../src/run.js';
 
 const FIXTURE = new URL('../fixtures/sample-odds.json', import.meta.url).pathname;
 const CHAT = '42';
@@ -42,6 +42,7 @@ test('a full week: picks, taps, commands, settling and the stop-loss', async () 
   assert.match(picks[2].text, /⚽ <b>Liverpool to win/);
   assert.match(picks[0].text, /Jannik Sinner to win<\/b> @ <b>1\.18/);
   assert.match(picks[0].text, /Stake <b>£2\.00/);
+  assert.match(picks[0].text, /Still worth it at <b>1\.16<\/b> or better/);
   const [sinner, makhachev] = picks.slice(0, 2).map((m) => m.buttons[0][0].callback_data.split(':')[1]);
   assert.match(bot.sent.at(-1).text, /Bankroll <b>£100\.00/);
 
@@ -98,5 +99,42 @@ test('unknown commands get the help text', async () => {
   bot.queue = [say('hello')];
   await runOnce({ cfg: loadConfig({}, {}), store, bot, now: new Date('2026-10-14T12:00:00Z'), fixture: FIXTURE });
   assert.match(bot.sent[0].text, /Commands/);
+  store.close();
+});
+
+test('no more than 5 picks a day; the rest wait', async () => {
+  const cfg = loadConfig({}, { 'max-picks-per-day': 2 });
+  const store = openStore(':memory:');
+  const bot = fakeBot();
+  let r = await runOnce({ cfg, store, bot, now: new Date('2026-10-14T12:00:00Z'), fixture: FIXTURE });
+  assert.equal(r.sent, 2);
+  assert.match(bot.sent.at(-1).text, /1 more pick held back by your 2-a-day limit/);
+  r = await runOnce({ cfg, store, bot, now: new Date('2026-10-14T12:05:00Z'), fixture: FIXTURE });
+  assert.equal(r.sent, 0, 'still the same UK day');
+  // Just after midnight UK time (23:05 UTC in BST) it's a new day.
+  r = await runOnce({ cfg: { ...cfg, maxStaleMinutes: 1e6 }, store, bot, now: new Date('2026-10-14T23:05:00Z'), fixture: FIXTURE });
+  assert.equal(r.sent, 1);
+  assert.equal(loadConfig({}, {}).maxPicksPerDay, 5);
+  store.close();
+});
+
+test('warns once about a bookmaker that never appears in the data', async () => {
+  const cfg = loadConfig({}, { books: 'paddypower,betfred' });
+  const store = openStore(':memory:');
+  const bot = fakeBot();
+  await runOnce({ cfg, store, bot, now: new Date('2026-10-14T12:00:00Z'), fixture: FIXTURE });
+  assert.match(bot.sent.at(-1).text, /No prices found from: betfred/);
+  await runOnce({ cfg, store, bot, now: new Date('2026-10-14T12:05:00Z'), fixture: FIXTURE });
+  assert.doesNotMatch(bot.sent.at(-1).text, /betfred/);
+  store.close();
+});
+
+test('links the first private chat when no chat ID is set', async () => {
+  const store = openStore(':memory:');
+  const api = { updates: async () => [{ update_id: 1, message: { text: 'hi', chat: { id: 1234, type: 'private' } } }] };
+  assert.deepEqual(await linkChat(store, api), { chatId: '1234', isNew: true });
+  const other = { updates: async () => [{ update_id: 2, message: { text: 'hi', chat: { id: 999, type: 'private' } } }] };
+  assert.deepEqual(await linkChat(store, other), { chatId: '1234', isNew: false }, 'a stranger can\'t take over later');
+  await assert.rejects(linkChat(openStore(':memory:'), { updates: async () => [] }), /send it any message/);
   store.close();
 });

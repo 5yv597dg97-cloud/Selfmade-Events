@@ -5,7 +5,7 @@ import { loadEvents, settleFinished } from './events.js';
 import { report } from './store.js';
 import { manualResult } from './settle.js';
 import { esc } from './telegram.js';
-import { money, pct, when, selection } from './format.js';
+import { money, pct, when, selection, ukDate } from './format.js';
 
 const ICON = { tennis: '🎾', mma: '🥊', soccer: '⚽', basketball: '🏀', americanfootball: '🏈', icehockey: '🏒' };
 const icon = (sport) => ICON[sport.split('_')[0]] ?? '🎯';
@@ -25,7 +25,8 @@ export function pickMessage(p) {
     `${esc(p.home)} v ${esc(p.away)} · ${esc(p.league)} · ${when(p.commenceTime)}`,
     `Wins ${pct(p.fairProb, 0)} of the time (fair odds ${p.fairOdds.toFixed(2)}) · break-even ${pct(1 / p.odds, 0)} · edge +${pct(p.ev)}`,
     `Stake <b>${money(p.stake)}</b> to win ${money(p.stake * (p.odds - 1))}`,
-    `<i>Check it's still ${p.odds} or better before betting.</i> Pick <code>${p.id}</code>`,
+    `Still worth it at <b>${p.minPrice}</b> or better; skip if the price has dropped below that.`,
+    `Pick <code>${p.id}</code>`,
   ].join('\n');
 }
 
@@ -91,7 +92,7 @@ async function onCommand(msg, { store, bot, cfg, now }) {
       const odds = args[1] ? Number(args[1]) : pick.odds;
       const stake = args[2] ? Number(args[2]) : pick.stake;
       if (!(odds > 1) || !(stake > 0)) return reply('Odds must be above 1 and stake above 0, e.g. <code>/placed 3a2fce56 1.16 2</code>');
-      const warning = pick.fairProb * odds - 1 <= 0 ? `\n⚠️ At ${odds} this bet has no edge (fair odds ${pick.fairOdds.toFixed(2)}).` : '';
+      const warning = odds < (pick.minPrice ?? 0) ? `\n⚠️ ${odds} is below the ${pick.minPrice} worth taking, so this bet has little or no edge.` : '';
       return reply(placeBet(store, pick, { odds, stake, now }) + warning);
     }
     case '/result': {
@@ -117,6 +118,30 @@ async function onCommand(msg, { store, bot, cfg, now }) {
     default:
       return reply(HELP);
   }
+}
+
+/** Warns once about any of your bookmakers that never appears in the odds data (wrong code, or not covered). */
+function missingBooks(store, cfg, events) {
+  if (!events.length || !cfg.books.length) return [];
+  const seen = new Set(events.flatMap((e) => (e.bookmakers ?? []).map((b) => b.key)));
+  const warned = new Set((store.getMeta('warned_books') ?? '').split(',').filter(Boolean));
+  const missing = cfg.books.filter((b) => !seen.has(b) && !warned.has(b));
+  if (!missing.length) return [];
+  store.setMeta('warned_books', [...warned, ...missing].join(','));
+  return [`⚠️ No prices found from: ${missing.join(', ')}. Check the bookmaker code in EDGE_BOOKS, or it may just have no odds on these matches yet.`];
+}
+
+/**
+ * Finds the chat to send to when TELEGRAM_CHAT_ID isn't set: the first person
+ * to message the bot privately. Saved, so it only happens once.
+ */
+export async function linkChat(store, api) {
+  const saved = store.getMeta('chat_id');
+  if (saved) return { chatId: saved, isNew: false };
+  const first = (await api.updates()).find((u) => u.message?.chat.type === 'private');
+  if (!first) throw new Error('Open your bot in Telegram, send it any message (e.g. "hi"), then run the workflow again.');
+  store.setMeta('chat_id', first.message.chat.id);
+  return { chatId: String(first.message.chat.id), isNew: true };
 }
 
 export async function runOnce({ cfg, store, bot, now = new Date(), fixture, scoresFile, fetchImpl = fetch }) {
@@ -148,14 +173,19 @@ export async function runOnce({ cfg, store, bot, now = new Date(), fixture, scor
       const p = currentFairProb(events, b, cfg, now.getTime());
       if (p != null) store.setClose(b.id, p, now);
     }
-    const picks = scan(events, { ...cfg, bankroll }, now.getTime())
+    const found = scan(events, { ...cfg, bankroll }, now.getTime())
       .filter((p) => !p.suspicious && p.stake > 0 && !store.pick(p.id));
+    // Best picks first; anything over the daily limit can still go out on a later day if it's still value.
+    const room = cfg.maxPicksPerDay > 0 ? Math.max(0, cfg.maxPicksPerDay - store.picksSentOn(now, ukDate)) : Infinity;
+    const picks = found.slice(0, room);
     for (const p of picks) {
       await bot.send(pickMessage(p), { buttons: [[{ text: '✅ Placed', callback_data: `place:${p.id}` }, { text: 'Skip', callback_data: `skip:${p.id}` }]] });
       store.recordPick(p, now);
       sent++;
     }
-    if (!sent) footer.push('No new picks this time. Most scans find none; that is normal.');
+    if (found.length > picks.length) footer.push(`${found.length - picks.length} more pick${found.length - picks.length === 1 ? '' : 's'} held back by your ${cfg.maxPicksPerDay}-a-day limit.`);
+    else if (!sent) footer.push('No new picks this time. Most scans find none; that is normal.');
+    footer.push(...missingBooks(store, cfg, events));
     if (errors.length) footer.push(`⚠️ Couldn't load: ${esc(errors.join('; '))}`);
     if (remaining != null && remaining < 60) footer.push(`⚠️ Only ${remaining} Odds API credits left this month.`);
   }

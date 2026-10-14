@@ -29,7 +29,8 @@ Expect a +2–5% average return on stakes *if* everything goes right, with big s
 | Minimum edge | 1.5% | 2% |
 | Sports | All tennis tournaments, MMA, Premier League | EPL, Champions League, NBA, NFL, NHL |
 | Market | Match winner only | Match winner, handicaps, over/unders |
-| Bookmakers | Paddy Power, Betfair Sportsbook | Any |
+| Bookmakers | Paddy Power, Betfair Sportsbook, Coral, Ladbrokes | Any |
+| Picks per day | 5 at most | No limit |
 | Bankroll | £100, pausing at £70 | £1,000, pausing at £700 |
 
 Choose with `--profile value` or `EDGE_PROFILE=value`. Any setting below overrides the profile.
@@ -52,22 +53,23 @@ Twice a day (about 9am and 5pm UK time), GitHub runs a scan of tennis, MMA and t
 > Sinner v Gaston · ATP Paris Masters · Thu 15 Oct, 14:00
 > Wins 88% of the time (fair odds 1.14) · break-even 85% · edge +3.9%
 > Stake **£2.00** to win £0.36
+> Still worth it at **1.16** or better; skip if the price has dropped below that.
 > [ ✅ Placed ] [ Skip ]
 
 Tap **✅ Placed** once you've placed the bet, and it's logged at that price and stake. Every run also settles finished bets, tells you the results, and sends your bankroll and win rate.
 
-One-off setup, about 15 minutes:
+One-off setup, about 15 minutes, all doable on a phone:
 
 1. **Odds API key.** Sign up free at [the-odds-api.com](https://the-odds-api.com) and copy your key.
-2. **Telegram bot.** In Telegram, message [@BotFather](https://t.me/BotFather), send `/newbot`, pick any name, and copy the token it gives you. Then open your new bot and send it any message (e.g. "hi").
-3. **Your chat ID.** On a computer with Node.js 22.13+, in this folder: `TELEGRAM_BOT_TOKEN=<token> npm run edge -- telegram-setup`. It prints `TELEGRAM_CHAT_ID=...`. The bot only listens to this chat.
-4. **GitHub secrets.** In the repository on GitHub: *Settings → Secrets and variables → Actions → New repository secret*. Add:
+2. **Telegram bot.** In Telegram, message [@BotFather](https://t.me/BotFather), send `/newbot`, pick any name and an unusual username, and copy the token it gives you. Then open your new bot and send it any message (e.g. "hi"). The first person to message the bot becomes its owner, so do this straight away.
+3. **GitHub secrets.** In the repository on GitHub: *Settings → Secrets and variables → Actions → New repository secret*. Add:
    - `ODDS_API_KEY`
    - `TELEGRAM_BOT_TOKEN`
-   - `TELEGRAM_CHAT_ID`
    - `EDGE_DATA_KEY`: any long password you make up. Your bet history is saved encrypted on the `edge-data` branch, because this repository is public. If you lose this password, the history can't be read.
    - Optional: under the *Variables* tab, `EDGE_BANKROLL` if you start with something other than £100.
-5. **First run.** *Actions → edge-finder → Run workflow*. Within a minute you should get a summary message on Telegram (and any picks).
+4. **First run.** *Actions → edge-finder → Run workflow*. Within a minute your bot should reply "Linked to this chat", followed by a summary and any picks. From then on it only talks to you.
+
+(On a computer you can instead set a `TELEGRAM_CHAT_ID` secret; `npm run edge -- telegram-setup` prints it.)
 
 After that it runs by itself. The schedule only runs from the repository's default branch.
 
@@ -83,6 +85,12 @@ Commands you send are read at the next scheduled run, not instantly.
 | `/report` | Bankroll, win rate, profit |
 | `/resume` | Carry on after the stop-loss paused betting. The new stop is 30% below your bankroll at that point |
 
+### Limits
+
+- **5 picks a day at most.** The best ones go first; any others are held back and can still go out the next day if they're still good value.
+- **The lowest price worth taking** is on every pick. Prices often drop before you see a pick; if yours is below that number, skip it.
+- **Each bet is at most 2% of your bankroll.**
+
 ### Stop-loss
 
 If your bankroll falls to £70 (30% below the start), picks stop and the bot tells you. Look back over what happened before sending `/resume`. A 30% drop at 75%+ win chances is unlikely to be bad luck alone; it more likely means the prices you're getting aren't the ones the scan found.
@@ -90,6 +98,10 @@ If your bankroll falls to £70 (30% below the start), picks stop and the bot tel
 ### API credits
 
 A run costs 1 credit per competition scanned, plus 2 per competition with a finished bet to settle. Competitions with no match in the next 48 hours are skipped for free, so the Premier League and MMA mostly cost credits around weekends. Expect roughly 250–450 credits a month, inside the free 500; busy tennis weeks cost the most. The bot warns you below 60 credits.
+
+### Bookmakers
+
+Picks come from Paddy Power, Betfair Sportsbook, Coral and Ladbrokes. Paddy Power and Betfair Sportsbook are one company (Flutter), as are Coral and Ladbrokes (Entain), so a restriction at one can follow you to its sister brand. Betfred isn't covered by The Odds API, so it can't be scanned. If a bookmaker never appears in the odds data, the bot tells you once.
 
 ### Football
 
@@ -140,7 +152,9 @@ Environment variables, or the flag in brackets for one run:
 | `EDGE_MIN_PROB` (`--min-prob`) | from profile | Minimum fair win chance |
 | `EDGE_MIN_ODDS` / `EDGE_MAX_ODDS` | from profile | Odds range |
 | `EDGE_STOP_LOSS_PCT` | `0.3` | Pause after the bankroll falls this far (0 = never) |
-| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | | For the `run` command |
+| `TELEGRAM_BOT_TOKEN` | | For the `run` command |
+| `TELEGRAM_CHAT_ID` | first chat to message the bot | Who gets the picks |
+| `EDGE_MAX_PICKS_PER_DAY` | from profile | Most picks sent per UK day (0 = no limit) |
 | `EDGE_MAX_STALE_MINUTES` | `10` | Ignore prices older than this |
 | `EDGE_MIN_LEAD_MINUTES` | `5` | Ignore events starting sooner than this |
 | `EDGE_LOOKAHEAD_HOURS` | `48` | Only scan competitions with a match starting within this window |
