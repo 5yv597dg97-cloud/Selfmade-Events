@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { transaction } from '../db.js';
-import { requireHost } from '../middleware.js';
+import { requireHost, appUrl } from '../middleware.js';
 import { parseCents, parseInputDateTime, toInputDateTime } from '../format.js';
 
 const MAX_TYPES = 10;
@@ -76,7 +76,7 @@ export default function hostRoutes({ db, payments }) {
     SELECT e.*,
       COALESCE((SELECT SUM(capacity) FROM ticket_types WHERE event_id = e.id), 0) AS capacity,
       COALESCE((SELECT SUM(sold) FROM ticket_types WHERE event_id = e.id), 0) AS sold,
-      COALESCE((SELECT SUM(total_cents) FROM orders WHERE event_id = e.id AND status = 'paid'), 0) AS revenue_cents
+      COALESCE((SELECT SUM(subtotal_cents - commission_cents) FROM orders WHERE event_id = e.id AND status = 'paid'), 0) AS earnings_cents
     FROM events e WHERE e.host_id = ? ORDER BY e.starts_at DESC`);
   const getOwnEvent = db.prepare('SELECT * FROM events WHERE id = ? AND host_id = ?');
   const getTypes = db.prepare('SELECT * FROM ticket_types WHERE event_id = ? ORDER BY id');
@@ -87,6 +87,9 @@ export default function hostRoutes({ db, payments }) {
   const deleteType = db.prepare('DELETE FROM ticket_types WHERE id = ? AND event_id = ? AND sold = 0');
   const setStatus = db.prepare('UPDATE events SET status = ? WHERE id = ?');
   const paidOrders = db.prepare("SELECT * FROM orders WHERE event_id = ? AND status = 'paid'");
+  const hasPaidTypes = db.prepare('SELECT 1 FROM ticket_types WHERE event_id = ? AND price_cents > 0 LIMIT 1');
+  const setStripeAccount = db.prepare('UPDATE users SET stripe_account_id = ? WHERE id = ?');
+  const setChargesEnabled = db.prepare('UPDATE users SET stripe_charges_enabled = ? WHERE id = ?');
   const refundOrder = db.prepare("UPDATE orders SET status = 'refunded' WHERE id = ? AND status = 'paid'");
   const attendees = db.prepare(`
     SELECT t.id, t.code, t.checked_in_at, tt.name AS type_name, u.name AS buyer_name, u.email AS buyer_email, o.id AS order_id
@@ -127,8 +130,97 @@ export default function hostRoutes({ db, payments }) {
     }
   }
 
-  router.get('/', (req, res) => {
-    res.render('host/dashboard', { title: 'Host dashboard', events: hostEvents.all(req.user.id) });
+  /** Hosts need a connected payout account to sell paid tickets (not with mock payments). */
+  function canSellPaid(user) {
+    return !payments.requiresHostAccount || Boolean(user.stripe_charges_enabled);
+  }
+
+  /** Re-check an unfinished Stripe account so the dashboard reflects onboarding done elsewhere. */
+  async function refreshPayoutStatus(user) {
+    if (!payments.requiresHostAccount || !user.stripe_account_id || user.stripe_charges_enabled) return;
+    try {
+      const status = await payments.hostAccounts.status(user.stripe_account_id);
+      if (status.chargesEnabled) {
+        setChargesEnabled.run(1, user.id);
+        user.stripe_charges_enabled = 1;
+      }
+      user.stripe_details_submitted = status.detailsSubmitted;
+    } catch (err) {
+      console.error(`Host ${user.id}: could not refresh Stripe account status:`, err.message);
+    }
+  }
+
+  const PAYOUTS_NEEDED = 'Set up payouts before publishing an event with paid tickets, so ticket money can reach you.';
+
+  router.get('/', async (req, res, next) => {
+    try {
+      await refreshPayoutStatus(req.user);
+      res.render('host/dashboard', { title: 'Host dashboard', events: hostEvents.all(req.user.id), needsPayouts: !canSellPaid(req.user) });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.get('/payments', async (req, res, next) => {
+    try {
+      await refreshPayoutStatus(req.user);
+      res.render('host/payments', { title: 'Payouts', provider: payments.name, account: req.user });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  async function redirectToOnboarding(req, res) {
+    const base = appUrl(req);
+    const url = await payments.hostAccounts.onboardingUrl(req.user.stripe_account_id, {
+      refreshUrl: `${base}/host/payments/refresh`,
+      returnUrl: `${base}/host/payments/return`,
+    });
+    res.redirect(303, url);
+  }
+
+  router.post('/payments/connect', async (req, res, next) => {
+    if (!payments.requiresHostAccount) return res.redirect('/host/payments');
+    try {
+      if (!req.user.stripe_account_id) {
+        const accountId = await payments.hostAccounts.create({ email: req.user.email });
+        setStripeAccount.run(accountId, req.user.id);
+        req.user.stripe_account_id = accountId;
+      }
+      await redirectToOnboarding(req, res);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // Stripe sends hosts here when an onboarding link has expired: issue a fresh one.
+  router.get('/payments/refresh', async (req, res, next) => {
+    if (!payments.requiresHostAccount || !req.user.stripe_account_id) return res.redirect('/host/payments');
+    try {
+      await redirectToOnboarding(req, res);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.get('/payments/return', async (req, res, next) => {
+    try {
+      await refreshPayoutStatus(req.user);
+      if (req.user.stripe_charges_enabled) req.flash('success', "Payouts are set up. You're ready to sell paid tickets.");
+      else req.flash('info', 'Stripe still needs a few details before you can take payments. Continue setup when you are ready.');
+      res.redirect('/host/payments');
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post('/payments/dashboard', async (req, res, next) => {
+    if (!payments.requiresHostAccount || !req.user.stripe_account_id) return res.redirect('/host/payments');
+    try {
+      res.redirect(303, await payments.hostAccounts.dashboardUrl(req.user.stripe_account_id));
+    } catch (err) {
+      next(err);
+    }
   });
 
   router.get('/events/new', (req, res) => {
@@ -149,8 +241,15 @@ export default function hostRoutes({ db, payments }) {
       saveTypes(eventId, types);
       return eventId;
     });
-    if (req.body.publish === '1') setStatus.run('published', id);
-    req.flash('success', req.body.publish === '1' ? 'Event published!' : 'Draft saved. Publish it when you are ready.');
+    if (req.body.publish !== '1') {
+      req.flash('success', 'Draft saved. Publish it when you are ready.');
+    } else if (hasPaidTypes.get(id) && !canSellPaid(req.user)) {
+      req.flash('error', `Saved as a draft. ${PAYOUTS_NEEDED}`);
+      return res.redirect('/host/payments');
+    } else {
+      setStatus.run('published', id);
+      req.flash('success', 'Event published!');
+    }
     res.redirect('/host');
   });
 
@@ -185,6 +284,9 @@ export default function hostRoutes({ db, payments }) {
   router.post('/events/:id/publish', ownEvent, (req, res) => {
     if (req.event.status !== 'draft') {
       req.flash('error', 'Only drafts can be published.');
+    } else if (hasPaidTypes.get(req.event.id) && !canSellPaid(req.user)) {
+      req.flash('error', PAYOUTS_NEEDED);
+      return res.redirect('/host/payments');
     } else {
       setStatus.run('published', req.event.id);
       req.flash('success', `"${req.event.title}" is now live.`);
@@ -199,11 +301,13 @@ export default function hostRoutes({ db, payments }) {
       setStatus.run('cancelled', e.id);
       let failed = 0;
       for (const order of paidOrders.all(e.id)) {
-        let result;
-        try {
-          result = await payments.refund({ reference: order.payment_reference, amountCents: order.total_cents });
-        } catch (err) {
-          result = { ok: false, error: err.message };
+        let result = { ok: true }; // free orders have nothing to refund
+        if (order.total_cents > 0) {
+          try {
+            result = await payments.refund({ reference: order.payment_reference, amountCents: order.total_cents });
+          } catch (err) {
+            result = { ok: false, error: err.message };
+          }
         }
         if (result.ok) refundOrder.run(order.id);
         else failed++;

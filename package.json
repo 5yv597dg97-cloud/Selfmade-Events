@@ -17,7 +17,8 @@
     "bcryptjs": "^3.0.3",
     "ejs": "^3.1.10",
     "express": "^5.3.0",
-    "express-session": "^1.19.0"
+    "express-session": "^1.19.0",
+    "stripe": "^23.0.0"
   },
   "devDependencies": {
     "supertest": "^7.3.1"

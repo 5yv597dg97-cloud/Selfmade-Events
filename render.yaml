@@ -23,3 +23,19 @@ services:
         value: /var/data/selfmade-events.db
       - key: SESSION_SECRET
         generateValue: true
+      # Stripe (Dashboard > Developers > API keys). Render asks for these when you
+      # create the Blueprint; start with test keys (sk_test_...).
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      # Signing secret of the webhook endpoint https://<your-site>/stripe/webhook.
+      # Can be left blank on the first deploy and added once the site has a URL.
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      # Your fees (0 = none). Booking fee is paid by the buyer per paid ticket;
+      # commission comes out of the host's ticket sales.
+      - key: BOOKING_FEE_PERCENT
+        value: "0"
+      - key: BOOKING_FEE_FIXED_PENCE
+        value: "0"
+      - key: PLATFORM_COMMISSION_PERCENT
+        value: "0"

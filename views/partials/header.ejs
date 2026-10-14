@@ -14,7 +14,7 @@
       <a href="/">Browse</a>
       <% if (user) { %>
         <a href="/my-tickets">My tickets</a>
-        <% if (user.role === 'host') { %><a href="/host">Host dashboard</a><% } %>
+        <% if (user.role === 'host') { %><a href="/host">Host dashboard</a><a href="/host/payments">Payouts</a><% } %>
         <form method="post" action="/logout" class="inline">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <button class="link">Log out (<%= user.name %>)</button>

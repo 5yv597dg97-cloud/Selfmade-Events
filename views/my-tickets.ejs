@@ -12,7 +12,7 @@
       </div>
       <div class="right">
         <% if (o.status === 'refunded') { %><span class="badge badge-cancelled">Refunded</span><% } else { %><span class="badge badge-published">Confirmed</span><% } %>
-        <p class="muted">Order #<%= o.id %> · <%= format.money(o.total_cents) %></p>
+        <p class="muted">Order #<%= o.id %> · <%= format.money(o.total_cents) %><% if (o.booking_fee_cents) { %> <span class="small">(incl. <%= format.money(o.booking_fee_cents) %> booking fee)</span><% } %></p>
       </div>
     </div>
     <% if (o.status === 'paid') { %>

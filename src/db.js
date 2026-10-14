@@ -57,11 +57,38 @@ CREATE INDEX IF NOT EXISTS idx_orders_event ON orders(event_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_order ON tickets(order_id);
 `;
 
+// Each entry upgrades the schema by one version (tracked in PRAGMA user_version).
+// Append new migrations; never edit ones that have shipped.
+const MIGRATIONS = [
+  // 1: Stripe Connect accounts for hosts; fees and hosted checkout for orders.
+  `ALTER TABLE users ADD COLUMN stripe_account_id TEXT;
+   ALTER TABLE users ADD COLUMN stripe_charges_enabled INTEGER NOT NULL DEFAULT 0;
+   ALTER TABLE orders ADD COLUMN subtotal_cents INTEGER NOT NULL DEFAULT 0;
+   ALTER TABLE orders ADD COLUMN booking_fee_cents INTEGER NOT NULL DEFAULT 0;
+   ALTER TABLE orders ADD COLUMN commission_cents INTEGER NOT NULL DEFAULT 0;
+   ALTER TABLE orders ADD COLUMN checkout_session_id TEXT;
+   ALTER TABLE orders ADD COLUMN expires_at TEXT;
+   UPDATE orders SET subtotal_cents = total_cents;
+   CREATE UNIQUE INDEX idx_orders_checkout ON orders(checkout_session_id);
+   CREATE INDEX idx_orders_pending ON orders(status, expires_at);`,
+];
+
+function migrate(db) {
+  const { user_version: version } = db.prepare('PRAGMA user_version').get();
+  for (let v = version; v < MIGRATIONS.length; v++) {
+    transaction(db, () => {
+      db.exec(MIGRATIONS[v]);
+      db.exec(`PRAGMA user_version = ${v + 1}`);
+    });
+  }
+}
+
 export function openDb(path = ':memory:') {
   const db = new DatabaseSync(path);
   db.exec('PRAGMA foreign_keys = ON;');
   if (path !== ':memory:') db.exec('PRAGMA journal_mode = WAL;');
   db.exec(SCHEMA);
+  migrate(db);
   return db;
 }
 

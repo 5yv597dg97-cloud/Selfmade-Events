@@ -6,7 +6,7 @@ A booking system where **hosts** post events and **clients** buy tickets.
 
 **Clients**
 - Browse and search upcoming events
-- Buy one or more ticket types per event (max 10 of each type per order)
+- Buy one or more ticket types per event (max 10 of each type per order), paying on Stripe's secure checkout (cards, Apple Pay, Google Pay)
 - "My tickets" page with a unique code for each ticket, shown at the door
 
 **Hosts**
@@ -15,11 +15,12 @@ A booking system where **hosts** post events and **clients** buy tickets.
 - Dashboard with tickets sold, capacity and revenue for each event
 - Attendee list and check-in by ticket code (each ticket can be checked in once)
 - Cancel an event, which refunds every paid order automatically
+- Connect a bank account through Stripe (Payouts page) to receive ticket money directly; dashboard shows earnings after commission
 
 **Under the hood**
 - Overselling can't happen: seats are reserved with a conditional `UPDATE` inside a SQLite transaction before payment is taken, and are released if payment fails
 - Passwords are hashed with bcrypt; sessions are regenerated on login; every form is CSRF-protected; login redirects only go to local paths
-- Payments are pluggable (`src/payments.js`). The default mock provider approves every charge, so the app works without any credentials
+- Payments go through Stripe when `STRIPE_SECRET_KEY` is set (see [Payments](#payments)); without it, a mock provider approves every purchase so the app works locally with no credentials. Production refuses to start in mock mode unless `PAYMENTS=mock` is set
 
 ## Stack
 
@@ -49,6 +50,37 @@ Run the tests with `npm test`.
 | `DATABASE_PATH`  | `selfmade-events.db` | SQLite file                                     |
 | `SESSION_SECRET` | random per boot      | Cookie signing secret (required in production)  |
 | `NODE_ENV`       | –                    | `production` turns on secure cookies            |
+| `STRIPE_SECRET_KEY` | –                 | Stripe secret key; enables real payments        |
+| `STRIPE_WEBHOOK_SECRET` | –             | Signing secret for `/stripe/webhook`            |
+| `BOOKING_FEE_PERCENT` | `0`             | Buyer-paid fee: % of each paid ticket           |
+| `BOOKING_FEE_FIXED_PENCE` | `0`         | Buyer-paid fee: pence per paid ticket           |
+| `PLATFORM_COMMISSION_PERCENT` | `0`     | % of ticket sales kept from the host's share    |
+| `APP_URL`        | Render URL           | Public URL used in Stripe redirects (set it when you add a custom domain) |
+| `PAYMENTS`       | –                    | `mock` allows production without Stripe (demo)  |
+
+## Payments
+
+Payments use **Stripe Checkout** with **Stripe Connect** (Express accounts):
+
+1. A host opens **Payouts** and connects a bank account through Stripe's onboarding. Stripe handles identity checks. Paid events can't be published until this is done; free events don't need it.
+2. A buyer picks tickets. The seats are held for 30 minutes and the buyer is sent to Stripe's payment page.
+3. Stripe confirms the payment with a webhook (and again when the buyer returns to the site). The order is marked paid and the tickets appear under My tickets. If checkout is cancelled or expires, the seats are released.
+4. The money goes to the host's Stripe account, minus your **application fee** (booking fee + commission), which lands in your Stripe balance. Stripe pays hosts out to their bank automatically.
+5. Cancelling an event refunds every buyer in full, reversing the host's transfer and your fee.
+
+With this setup (destination charges), Stripe's processing fee is taken from **your** share. Set your booking fee or commission to at least cover it, or you'll lose money on each sale.
+
+Safety nets: payments that land after a hold expired, or after the event was cancelled, are refunded automatically; a background job every 5 minutes settles checkouts whose webhooks never arrived.
+
+### Setting up Stripe
+
+1. Create a Stripe account at [stripe.com](https://stripe.com) (UK). Use **test mode** first.
+2. Enable **Connect** (Dashboard → Connect → Get started) and choose the platform/marketplace option.
+3. Copy the secret key (Developers → API keys) into `STRIPE_SECRET_KEY` on Render.
+4. Add a webhook endpoint (Developers → Webhooks) at `https://<your-site>/stripe/webhook` with the events `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed` and `checkout.session.expired`. Put its signing secret into `STRIPE_WEBHOOK_SECRET`.
+5. Test with card `4242 4242 4242 4242`, any future date and any CVC. When you're ready, repeat steps 3–4 with live keys.
+
+For local testing, the [Stripe CLI](https://stripe.com/docs/stripe-cli) can forward webhooks: `stripe listen --forward-to localhost:3000/stripe/webhook`.
 
 ## Deploying to Render
 
@@ -62,6 +94,7 @@ What the Blueprint creates:
 - A **Starter** web service (about $7/month) in **Frankfurt**, Render's closest region to the UK
 - A 1 GB **persistent disk** at `/var/data` that holds the SQLite database (users, events, orders and login sessions). It survives deploys and restarts
 - A random `SESSION_SECRET`, plus `NODE_ENV=production` and `DATABASE_PATH`
+- Prompts for your Stripe keys, and fee settings defaulting to 0 (see [Payments](#payments))
 - A health check at `/healthz`
 
 Notes:
@@ -80,11 +113,15 @@ src/
   server.js       Entry point
   seed.js         Demo data
   db.js           Schema + transaction helper
-  payments.js     Payment provider interface + mock
+  payments.js     Payment provider interface, mock, provider selection
+  stripe-payments.js  Stripe Checkout + Connect provider
+  orders.js       Order lifecycle: hold seats, confirm, release, refund
+  fees.js         Booking fee and commission calculation
   routes/
     auth.js       Register / login / logout
     events.js     Public listing, event page, checkout
-    tickets.js    "My tickets"
+    tickets.js    "My tickets", return pages from Stripe
+    webhooks.js   Stripe webhook
     host.js       Host dashboard, event CRUD, attendees, check-in, cancel
 views/            EJS templates
 public/           CSS + small client scripts
@@ -93,6 +130,5 @@ test/             node:test + supertest integration tests
 
 ## Before going to production
 
-- **Real payments:** add a provider such as Stripe Checkout by implementing `charge`/`refund` in `src/payments.js`. For hosted checkout, keep orders `pending` and confirm them from a webhook.
 - **Email:** send order confirmations and cancellation notices.
-- **Host payouts:** e.g. Stripe Connect, so hosts receive their revenue directly.
+- **Legal pages:** terms of service (including your refund policy) and a privacy policy.

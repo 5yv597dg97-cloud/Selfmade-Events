@@ -5,6 +5,8 @@ import express from 'express';
 import session from 'express-session';
 import { openDb } from './db.js';
 import { mockPayments } from './payments.js';
+import { NO_FEES } from './fees.js';
+import { createOrders } from './orders.js';
 import { SqliteSessionStore } from './session-store.js';
 import { loadUser, csrf, flash } from './middleware.js';
 import * as format from './format.js';
@@ -12,12 +14,15 @@ import authRoutes from './routes/auth.js';
 import eventRoutes from './routes/events.js';
 import hostRoutes from './routes/host.js';
 import ticketRoutes from './routes/tickets.js';
+import webhookRoutes from './routes/webhooks.js';
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
 export function createApp({
   db = openDb(),
   payments = mockPayments,
+  fees = NO_FEES,
+  sweepIntervalMs = null,
   sessionSecret = process.env.SESSION_SECRET ?? crypto.randomBytes(32).toString('hex'),
 } = {}) {
   const app = express();
@@ -27,11 +32,18 @@ export function createApp({
   app.set('view engine', 'ejs');
   app.set('views', path.join(root, 'views'));
   app.locals.format = format;
+  app.locals.paymentsProvider = payments.name;
+
+  const orders = createOrders({ db, payments });
+  if (sweepIntervalMs) setInterval(() => orders.sweep(), sweepIntervalMs).unref();
+  const ctx = { db, payments, fees, orders };
 
   app.get('/healthz', (req, res) => {
     db.prepare('SELECT 1').get();
     res.type('text').send('ok');
   });
+  // Before the body parser, session and CSRF: Stripe signs the raw JSON body.
+  app.use(webhookRoutes(ctx));
   app.use(express.static(path.join(root, 'public')));
   app.use(express.urlencoded({ extended: true, limit: '100kb' }));
   app.use(session({
@@ -45,7 +57,6 @@ export function createApp({
   app.use(loadUser(db));
   app.use(csrf);
 
-  const ctx = { db, payments };
   app.use(authRoutes(ctx));
   app.use(eventRoutes(ctx));
   app.use('/host', hostRoutes(ctx));

@@ -11,17 +11,17 @@
     </div>
     <aside class="card">
       <h2>Tickets</h2>
-      <% const onSale = event.status === 'published' && new Date(event.starts_at) > new Date(); %>
+      <% const onSale = event.status === 'published' && new Date(event.starts_at) > new Date() && !salesBlocked; %>
       <form method="post" action="/events/<%= event.id %>/checkout" class="stack" id="checkout">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <% for (const t of types) { const left = t.capacity - t.sold; %>
           <div class="ticket-row">
             <div>
               <strong><%= t.name %></strong><br>
-              <span class="muted"><%= format.money(t.price_cents) %> · <%= left > 0 ? `${left} left` : 'Sold out' %></span>
+              <span class="muted"><%= format.money(t.price_cents) %><% if (t.booking_fee) { %> + <%= format.money(t.booking_fee) %> fee<% } %> · <%= left > 0 ? `${left} left` : 'Sold out' %></span>
             </div>
             <% if (onSale && left > 0) { %>
-              <select name="qty_<%= t.id %>" data-price="<%= t.price_cents %>" aria-label="Quantity for <%= t.name %>">
+              <select name="qty_<%= t.id %>" data-price="<%= t.price_cents + t.booking_fee %>" aria-label="Quantity for <%= t.name %>">
                 <% for (let i = 0; i <= Math.min(max, left); i++) { %><option value="<%= i %>"><%= i %></option><% } %>
               </select>
             <% } %>
@@ -30,10 +30,13 @@
         <% if (onSale && types.some((t) => t.capacity > t.sold)) { %>
           <p class="total">Total: <strong id="total">£0.00</strong></p>
           <% if (user) { %>
-            <button class="button">Buy tickets</button>
+            <button class="button"><%= paymentsProvider === 'stripe' ? 'Continue to payment' : 'Buy tickets' %></button>
+            <% if (paymentsProvider === 'stripe') { %><p class="muted small">You'll pay securely on Stripe. Seats are held for 30 minutes.</p><% } %>
           <% } else { %>
             <a class="button" href="/login?next=/events/<%= event.id %>">Log in to buy</a>
           <% } %>
+        <% } else if (salesBlocked) { %>
+          <p class="muted">Tickets will go on sale once the host has finished setting up payments.</p>
         <% } else if (!onSale) { %>
           <p class="muted">Tickets are not on sale.</p>
         <% } else { %>

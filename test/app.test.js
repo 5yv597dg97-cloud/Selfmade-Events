@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { openDb } from '../src/db.js';
+import { mockPayments } from '../src/payments.js';
 
 let db;
 let app;
@@ -14,7 +15,11 @@ beforeEach(() => {
   paymentsOk = true;
   refunds = [];
   const payments = {
-    async charge() { return paymentsOk ? { ok: true, reference: 'ref_test' } : { ok: false, error: 'Card declined' }; },
+    ...mockPayments,
+    async startCheckout() {
+      if (!paymentsOk) throw new Error('Card declined');
+      return { status: 'paid', reference: 'ref_test' };
+    },
     async refund(args) { refunds.push(args); return { ok: true }; },
   };
   app = createApp({ db, payments, sessionSecret: 'test' });

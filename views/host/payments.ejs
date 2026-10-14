@@ -1,0 +1,23 @@
+<%- include('../partials/header') %>
+<section class="card narrow wide">
+  <h1>Payouts</h1>
+  <% if (provider !== 'stripe') { %>
+    <p>Payments are running in <strong>demo mode</strong>: purchases are approved instantly and no money changes hands, so there's nothing to set up.</p>
+    <p class="muted">Once the site has Stripe keys, this page lets you connect a bank account to receive ticket sales.</p>
+  <% } else if (account.stripe_charges_enabled) { %>
+    <p><span class="badge badge-published">Active</span></p>
+    <p>You're set up to sell paid tickets. Ticket money is paid out to your bank account by Stripe, usually within a few days of each sale.</p>
+    <form method="post" action="/host/payments/dashboard">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button class="button secondary">View payouts in Stripe</button>
+    </form>
+  <% } else { %>
+    <p>To sell paid tickets, connect a bank account through <strong>Stripe</strong>, our payment provider. It takes about five minutes. Stripe will ask for your details and bank account to verify your identity, as UK law requires.</p>
+    <p class="muted">Free events don't need payouts.</p>
+    <form method="post" action="/host/payments/connect">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button class="button"><%= account.stripe_account_id ? 'Continue setup' : 'Set up payouts' %></button>
+    </form>
+  <% } %>
+</section>
+<%- include('../partials/footer') %>

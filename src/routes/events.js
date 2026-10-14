@@ -1,13 +1,11 @@
 import { Router } from 'express';
-import crypto from 'node:crypto';
-import { transaction } from '../db.js';
-import { requireLogin } from '../middleware.js';
+import { requireLogin, appUrl } from '../middleware.js';
+import { priceOrder, bookingFeeFor } from '../fees.js';
+import { CHECKOUT_HOLD_MS, SoldOutError } from '../orders.js';
 
 export const MAX_TICKETS_PER_TYPE = 10;
 
-class SoldOutError extends Error {}
-
-export default function eventRoutes({ db, payments }) {
+export default function eventRoutes({ db, payments, fees, orders }) {
   const router = Router();
 
   const listUpcoming = db.prepare(`
@@ -23,14 +21,9 @@ export default function eventRoutes({ db, payments }) {
     ORDER BY e.starts_at
     LIMIT 100`);
   const getEvent = db.prepare(`
-    SELECT e.*, u.name AS host_name FROM events e JOIN users u ON u.id = e.host_id WHERE e.id = ?`);
+    SELECT e.*, u.name AS host_name, u.stripe_account_id AS host_stripe_account_id, u.stripe_charges_enabled AS host_charges_enabled
+    FROM events e JOIN users u ON u.id = e.host_id WHERE e.id = ?`);
   const getTypes = db.prepare('SELECT * FROM ticket_types WHERE event_id = ? ORDER BY price_cents, id');
-  const reserve = db.prepare('UPDATE ticket_types SET sold = sold + ? WHERE id = ? AND event_id = ? AND sold + ? <= capacity');
-  const release = db.prepare('UPDATE ticket_types SET sold = sold - ? WHERE id = ?');
-  const insertOrder = db.prepare("INSERT INTO orders (user_id, event_id, total_cents, status) VALUES (?, ?, ?, 'pending')");
-  const insertTicket = db.prepare('INSERT INTO tickets (order_id, ticket_type_id, code) VALUES (?, ?, ?)');
-  const setOrderStatus = db.prepare('UPDATE orders SET status = ?, payment_reference = ? WHERE id = ?');
-  const deleteTickets = db.prepare('DELETE FROM tickets WHERE order_id = ?');
 
   /** An event is visible to the public once published (or cancelled, so buyers see the notice). */
   function isVisible(event, user) {
@@ -47,7 +40,9 @@ export default function eventRoutes({ db, payments }) {
   router.get('/events/:id', (req, res, next) => {
     const event = getEvent.get(Number(req.params.id));
     if (!isVisible(event, req.user)) return next();
-    res.render('events/show', { title: event.title, event, types: getTypes.all(event.id), max: MAX_TICKETS_PER_TYPE });
+    const types = getTypes.all(event.id).map((t) => ({ ...t, booking_fee: bookingFeeFor(t.price_cents, fees) }));
+    const salesBlocked = payments.requiresHostAccount && !event.host_charges_enabled && types.some((t) => t.price_cents > 0);
+    res.render('events/show', { title: event.title, event, types, max: MAX_TICKETS_PER_TYPE, salesBlocked });
   });
 
   router.post('/events/:id/checkout', requireLogin, async (req, res, next) => {
@@ -76,21 +71,17 @@ export default function eventRoutes({ db, payments }) {
       req.flash('error', 'Select at least one ticket.');
       return res.redirect(back);
     }
-    const total = lines.reduce((sum, l) => sum + l.qty * l.type.price_cents, 0);
+    const pricing = priceOrder(lines, fees);
+    const needsHostAccount = pricing.total > 0 && payments.requiresHostAccount;
+    if (needsHostAccount && !event.host_charges_enabled) {
+      req.flash('error', "The host hasn't finished setting up payments yet, so paid tickets can't be sold right now.");
+      return res.redirect(back);
+    }
 
-    // 1. Reserve seats and create a pending order atomically.
+    // 1. Hold the seats and create a pending order.
     let orderId;
     try {
-      orderId = transaction(db, () => {
-        for (const { type, qty } of lines) {
-          if (reserve.run(qty, type.id, event.id, qty).changes !== 1) throw new SoldOutError(type.name);
-        }
-        const id = Number(insertOrder.run(req.user.id, event.id, total).lastInsertRowid);
-        for (const { type, qty } of lines) {
-          for (let i = 0; i < qty; i++) insertTicket.run(id, type.id, crypto.randomBytes(5).toString('hex').toUpperCase());
-        }
-        return id;
-      });
+      orderId = orders.reserve({ userId: req.user.id, eventId: event.id, lines, pricing, expiresAt: new Date(Date.now() + CHECKOUT_HOLD_MS) });
     } catch (err) {
       if (err instanceof SoldOutError) {
         req.flash('error', `Not enough "${err.message}" tickets left. Please choose fewer.`);
@@ -99,27 +90,40 @@ export default function eventRoutes({ db, payments }) {
       return next(err);
     }
 
-    // 2. Take payment outside the transaction; release the seats if it fails.
-    let result;
-    try {
-      result = await payments.charge({ amountCents: total, description: event.title, orderId });
-    } catch (err) {
-      result = { ok: false, error: err.message };
+    const done = () => {
+      req.flash('success', 'Your tickets are booked!');
+      res.redirect(`/my-tickets#order-${orderId}`);
+    };
+    if (pricing.total === 0) {
+      await orders.fulfil(orderId, 'free');
+      return done();
     }
 
-    if (!result.ok) {
-      transaction(db, () => {
-        for (const { type, qty } of lines) release.run(qty, type.id);
-        deleteTickets.run(orderId);
-        setOrderStatus.run('failed', null, orderId);
+    // 2. Start payment; release the seats if it can't start.
+    let result;
+    try {
+      const base = appUrl(req);
+      result = await payments.startCheckout({
+        orderId, event, lines, pricing,
+        hostAccountId: event.host_stripe_account_id,
+        buyerEmail: req.user.email,
+        successUrl: `${base}/orders/${orderId}/success`,
+        cancelUrl: `${base}/orders/${orderId}/cancel`,
+        expiresAt: new Date(Date.now() + CHECKOUT_HOLD_MS),
       });
-      req.flash('error', `Payment failed${result.error ? `: ${result.error}` : ''}. You have not been charged.`);
+    } catch (err) {
+      console.error(`Order ${orderId}: checkout failed to start:`, err.message);
+      orders.release(orderId);
+      req.flash('error', "We couldn't start the payment. You have not been charged. Please try again.");
       return res.redirect(back);
     }
 
-    setOrderStatus.run('paid', result.reference, orderId);
-    req.flash('success', 'Your tickets are booked!');
-    res.redirect(`/my-tickets#order-${orderId}`);
+    if (result.status === 'paid') {
+      await orders.fulfil(orderId, result.reference);
+      return done();
+    }
+    orders.attachCheckout(orderId, result.sessionId);
+    res.redirect(303, result.url);
   });
 
   return router;

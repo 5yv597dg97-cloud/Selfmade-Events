@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 
 export function loadUser(db) {
-  const stmt = db.prepare('SELECT id, name, email, role FROM users WHERE id = ?');
+  const stmt = db.prepare('SELECT id, name, email, role, stripe_account_id, stripe_charges_enabled FROM users WHERE id = ?');
   return (req, res, next) => {
     req.user = req.session.userId ? stmt.get(req.session.userId) ?? null : null;
     res.locals.user = req.user;
@@ -44,4 +44,10 @@ export function requireHost(req, res, next) {
     return res.status(403).render('error', { title: 'Hosts only', message: 'You need a host account to manage events.' });
   }
   next();
+}
+
+/** Public base URL for links sent to third parties (payment redirects). */
+export function appUrl(req) {
+  const configured = process.env.APP_URL ?? process.env.RENDER_EXTERNAL_URL;
+  return (configured ?? `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
 }

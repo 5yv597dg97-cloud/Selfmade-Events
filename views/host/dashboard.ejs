@@ -3,12 +3,15 @@
   <h1>Your events</h1>
   <a class="button" href="/host/events/new">+ New event</a>
 </div>
+<% if (needsPayouts) { %>
+  <div class="flash flash-info">To sell paid tickets, <a href="/host/payments">set up payouts</a> so ticket money can reach your bank account. Free events work without it.</div>
+<% } %>
 <% if (!events.length) { %>
   <p class="empty">You haven't created any events yet. <a href="/host/events/new">Create your first event</a>.</p>
 <% } else { %>
   <div class="table-wrap">
   <table>
-    <thead><tr><th>Event</th><th>Date</th><th>Status</th><th>Sold</th><th>Revenue</th><th></th></tr></thead>
+    <thead><tr><th>Event</th><th>Date</th><th>Status</th><th>Sold</th><th>Your earnings</th><th></th></tr></thead>
     <tbody>
     <% for (const e of events) { %>
       <tr>
@@ -16,7 +19,7 @@
         <td><%= format.dateTime(e.starts_at) %></td>
         <td><span class="badge badge-<%= e.status %>"><%= e.status %></span></td>
         <td><%= e.sold %> / <%= e.capacity %></td>
-        <td><%= format.money(e.revenue_cents, { free: false }) %></td>
+        <td><%= format.money(e.earnings_cents, { free: false }) %></td>
         <td><div class="actions">
           <% if (e.status !== 'cancelled') { %><a href="/host/events/<%= e.id %>/edit">Edit</a><% } %>
           <a href="/host/events/<%= e.id %>/attendees">Attendees</a>

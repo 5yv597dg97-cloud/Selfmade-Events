@@ -49,6 +49,7 @@ form.inline { display: inline; }
 
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
 .card.narrow { max-width: 440px; margin: 24px auto; }
+.card.narrow.wide { max-width: 640px; }
 .stack { display: flex; flex-direction: column; gap: 14px; }
 label { display: flex; flex-direction: column; gap: 4px; font-weight: 500; }
 label.check { flex-direction: row; align-items: center; gap: 6px; font-weight: 400; }
