@@ -32,6 +32,20 @@ export function grade(bet, homeScore, awayScore) {
   return { status, pnl };
 }
 
+/**
+ * A double's result once its legs are known: lost as soon as any leg loses;
+ * otherwise, once every leg is decided, paid at the odds of the legs that won
+ * (a void leg counts as odds of 1, as bookmakers settle it). Null while pending.
+ */
+export function doubleOutcome(double) {
+  const { legs, stake } = double;
+  if (legs.some((l) => l.result === 'lost')) return { status: 'lost', pnl: -stake };
+  if (!legs.every((l) => l.result)) return null;
+  if (legs.every((l) => l.result === 'void')) return { status: 'void', pnl: 0 };
+  const odds = legs.reduce((a, l) => a * (l.result === 'won' ? l.odds : 1), 1);
+  return { status: 'won', pnl: Math.round(stake * (odds - 1) * 100) / 100 };
+}
+
 /** Manual result: won, lost, push/void, half-won, half-lost. */
 export function manualResult(bet, status) {
   const r = { won: bet.odds - 1, lost: -1, push: 0, void: 0, 'half-won': (bet.odds - 1) / 2, 'half-lost': -0.5 }[status];

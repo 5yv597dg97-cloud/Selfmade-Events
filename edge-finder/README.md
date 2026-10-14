@@ -31,6 +31,7 @@ Expect a +2–5% average return on stakes *if* everything goes right, with big s
 | Market | Match winner only | Match winner, handicaps, over/unders |
 | Bookmakers | Paddy Power, Betfair Sportsbook, Coral, Ladbrokes, Betway | Any |
 | Picks per day | 5 at most | No limit |
+| Fun doubles | Up to 5 a week, £0.20 each | Off |
 | Bankroll | £100, pausing at £70 | £1,000, pausing at £700 |
 
 Choose with `--profile value` or `EDGE_PROFILE=value`. Any setting below overrides the profile.
@@ -104,6 +105,24 @@ Scanning a competition costs 1 credit, and settling bets costs 2 per competition
 - Out-of-season sports, and competitions with no match in the next 48 hours, are skipped for free.
 
 So on a busy weekend the lower-priority sports may not get scanned every time. The GitHub run log shows the budget and what was left out. If you move to a paid API plan, everything gets scanned every time with no other change. The budget assumes credits reset at the start of each month; set `EDGE_CREDIT_BUDGET=false` to turn rationing off.
+
+### Fun doubles
+
+As well as the singles, the bot sends up to 5 **fun doubles** a week: two selections from different matches, combined at odds between 50/1 and 150/1 at one bookmaker.
+
+> 🎲 **Fun double** @ **66.3** (65/1) with Paddy Power
+> 1. 🎾 Arthur Fils to win @ 5.1 · Alcaraz v Fils
+> 2. ⚽ Wolverhampton Wanderers to win @ 13 · Man City v Wolves
+> Wins about 1 in 59 · edge +12%
+> Stake **£0.20** to win £13.06
+
+- **Both legs must be good value.** Each is priced at least 2% above its fair odds, and the double at least 5%, so the double is good value too: the two edges multiply.
+- **They lose most of the time.** A 65/1 double wins about 1 time in 60, so runs of 100+ losses are normal. That's why the stake is a fixed £0.20 rather than a share of your bankroll.
+- **They're tracked separately.** Doubles don't count toward your win rate; `/report` shows them on their own line. Their profit and loss does count toward your bankroll and the stop-loss.
+- **Placing one:** add both selections to the bookmaker's bet slip and choose *Double*, then tap ✅ Placed. They settle automatically once both matches finish (or reply `/result D1 won|lost|void`). A void leg is settled at odds of 1, as bookmakers do.
+- **Settings:** `EDGE_DOUBLES=false` turns them off. `EDGE_DOUBLE_STAKE`, `EDGE_DOUBLES_PER_WEEK`, `EDGE_DOUBLE_MIN_ODDS` and `EDGE_DOUBLE_MAX_ODDS` (decimal; 50/1 is 51) change the rest.
+
+They use the odds already downloaded for the singles, so they cost no extra API credits.
 
 ### Bookmakers
 

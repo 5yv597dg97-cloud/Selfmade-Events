@@ -1,7 +1,7 @@
 // Getting odds and scores, from The Odds API or from local files for testing.
 import { readFileSync } from 'node:fs';
 import { fetchEvents, fetchOdds, fetchScores, fetchSports } from './odds-api.js';
-import { grade } from './settle.js';
+import { grade, doubleOutcome } from './settle.js';
 
 // The sharp books we need in every request when naming bookmakers explicitly.
 const SHARP_REQUEST = ['pinnacle', 'betfair_ex_uk'];
@@ -73,36 +73,66 @@ export async function loadEvents(cfg, { sports = cfg.sports, fixture, now = Date
 }
 
 /**
- * Grades open bets whose games have finished. Returns one entry per bet it
+ * Grades open bets and double legs whose games have finished. Returns what it
  * settled, plus the sports it couldn't get scores for (to settle by hand).
  */
 export async function settleFinished(store, cfg, { now = new Date(), scoresFile, fetchImpl = fetch } = {}) {
   // Score lookups cost credits, so only ask once a match has had time to finish,
   // and stop asking after two days (the API only looks back three).
-  const age = (b) => (now - new Date(b.commence_time)) / 3600e3;
-  const started = store.open().filter((b) => age(b) >= 2 && age(b) < 48);
-  const settled = [];
+  const age = (iso) => (now - new Date(iso)) / 3600e3;
+  const due = (iso) => age(iso) >= 2 && age(iso) < 48;
+  const singles = store.open().filter((b) => due(b.commence_time));
+  const doubles = store.openDoubles();
+  const sports = new Set([
+    ...singles.map((b) => b.sport),
+    ...doubles.flatMap((d) => d.legs.filter((l) => !l.result && due(l.commenceTime)).map((l) => l.sport)),
+  ]);
+
+  const games = new Map();
   const noScores = [];
-  for (const sport of new Set(started.map((b) => b.sport))) {
-    let games;
+  for (const sport of sports) {
     try {
-      games = scoresFile
+      games.set(sport, scoresFile
         ? JSON.parse(readFileSync(scoresFile, 'utf8'))
-        : (await fetchScores({ apiKey: cfg.apiKey, sport, daysFrom: 3, fetchImpl })).data;
+        : (await fetchScores({ apiKey: cfg.apiKey, sport, daysFrom: 3, fetchImpl })).data);
     } catch {
       noScores.push(sport);
-      continue;
-    }
-    for (const b of started.filter((x) => x.sport === sport)) {
-      const g = games.find((x) => x.id === b.event_id);
-      if (!g?.completed || !g.scores) continue;
-      const score = (team) => Number(g.scores.find((s) => s.name === team)?.score);
-      const [h, a] = [score(b.home), score(b.away)];
-      if (!Number.isFinite(h) || !Number.isFinite(a)) continue;
-      const result = grade(b, h, a);
-      store.settle(b.id, result, now);
-      settled.push({ bet: b, home: h, away: a, ...result });
     }
   }
-  return { settled, noScores };
+  /** [home, away] final score, or null if not finished or not available. */
+  const finalScore = (sport, eventId, home, away) => {
+    const g = games.get(sport)?.find((x) => x.id === eventId);
+    if (!g?.completed || !g.scores) return null;
+    const score = (team) => Number(g.scores.find((s) => s.name === team)?.score);
+    const s = [score(home), score(away)];
+    return s.every(Number.isFinite) ? s : null;
+  };
+
+  const settled = [];
+  for (const b of singles) {
+    const s = finalScore(b.sport, b.event_id, b.home, b.away);
+    if (!s) continue;
+    const result = grade(b, ...s);
+    store.settle(b.id, result, now);
+    settled.push({ bet: b, home: s[0], away: s[1], ...result });
+  }
+
+  const settledDoubles = [];
+  for (const d of doubles) {
+    let changed = false;
+    for (const leg of d.legs.filter((l) => !l.result)) {
+      const s = finalScore(leg.sport, leg.eventId, leg.home, leg.away);
+      if (!s) continue;
+      leg.result = grade({ market: 'h2h', outcome: leg.outcome, home: leg.home, odds: leg.odds, stake: 1 }, ...s).status;
+      leg.score = `${s[0]}–${s[1]}`;
+      changed = true;
+    }
+    if (changed) store.setDoubleLegs(d.id, d.legs);
+    const result = doubleOutcome(d);
+    if (result) {
+      store.settleDouble(d.id, result, now);
+      settledDoubles.push({ double: d, ...result });
+    }
+  }
+  return { settled, settledDoubles, noScores };
 }

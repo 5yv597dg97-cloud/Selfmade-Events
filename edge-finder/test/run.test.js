@@ -37,7 +37,7 @@ test('a full week: picks, taps, commands, settling and the stop-loss', async () 
   // Run 1: three picks go out with buttons, sized from £100.
   let r = await runOnce({ cfg, store, bot, now: at('2026-10-14T12:00:00Z'), fixture: FIXTURE });
   assert.equal(r.sent, 3);
-  const picks = bot.sent.filter((m) => m.buttons);
+  const picks = bot.sent.filter((m) => m.buttons && !/Fun double/.test(m.text));
   assert.equal(picks.length, 3);
   assert.match(picks[2].text, /⚽ <b>Liverpool to win/);
   assert.match(picks[0].text, /Jannik Sinner to win<\/b> @ <b>1\.18/);
@@ -137,4 +137,64 @@ test('links the first private chat when no chat ID is set', async () => {
   assert.deepEqual(await linkChat(store, other), { chatId: '1234', isNew: false }, 'a stranger can\'t take over later');
   await assert.rejects(linkChat(openStore(':memory:'), { updates: async () => [] }), /send it any message/);
   store.close();
+});
+
+test('fun doubles: found, sent, placed, settled, and kept out of the win rate', async () => {
+  const cfg = loadConfig({}, {});
+  const store = openStore(':memory:');
+  const bot = fakeBot();
+  let r = await runOnce({ cfg, store, bot, now: new Date('2026-10-14T12:00:00Z'), fixture: FIXTURE });
+  assert.equal(r.doublesSent, 1);
+  const msg = bot.sent.find((m) => /Fun double/.test(m.text));
+  assert.match(msg.text, /@ <b>66\.3<\/b> \(65\/1\) with Paddy Power/);
+  assert.match(msg.text, /Arthur Fils to win @ 5\.1/);
+  assert.match(msg.text, /Wolverhampton Wanderers to win @ 13/);
+  assert.match(msg.text, /Stake <b>£0\.20<\/b> to win £13\.06/);
+  const id = msg.buttons[0][0].callback_data.split(':')[1];
+
+  // Placed by button; not sent again on the next run.
+  bot.queue = [tap(`place:${id}`)];
+  bot.sent = [];
+  r = await runOnce({ cfg, store, bot, now: new Date('2026-10-14T12:05:00Z'), fixture: FIXTURE });
+  assert.equal(r.doublesSent, 0);
+  assert.ok(bot.sent.some((m) => /Logged double D1 @ 66\.3, £0\.20/.test(m.text)));
+
+  // Fils wins Thursday; the double stays open until Wolves play.
+  const dir = mkdtempSync(join(tmpdir(), 'edge-'));
+  const scores = join(dir, 'scores.json');
+  const fils = { id: 'evt_alc_fil', completed: true, scores: [{ name: 'Carlos Alcaraz', score: '1' }, { name: 'Arthur Fils', score: '2' }] };
+  writeFileSync(scores, JSON.stringify([fils]));
+  r = await runOnce({ cfg, store, bot, now: new Date('2026-10-15T22:00:00Z'), fixture: FIXTURE, scoresFile: scores });
+  assert.equal(store.getDouble(1).legs[0].result, 'won');
+  assert.equal(store.getDouble(1).status, 'open');
+
+  // Wolves win at the Etihad: the double lands.
+  writeFileSync(scores, JSON.stringify([fils, { id: 'evt_mci_wol', completed: true, scores: [{ name: 'Manchester City', score: '0' }, { name: 'Wolverhampton Wanderers', score: '1' }] }]));
+  bot.sent = [];
+  r = await runOnce({ cfg, store, bot, now: new Date('2026-10-17T20:00:00Z'), fixture: FIXTURE, scoresFile: scores });
+  assert.ok(bot.sent.some((m) => /🎉 Double D1 won.*£13\.06/.test(m.text)));
+  assert.equal(store.bankroll(100), 113.06);
+  assert.match(bot.sent.at(-1).text, /Fun doubles: 1 placed, 1 won, 0 lost · £13\.06/);
+  assert.doesNotMatch(bot.sent.at(-1).text, /Won \d+ of/, 'no singles win rate yet');
+  store.close();
+});
+
+test('at most 5 doubles a week, and /result settles one by hand', async () => {
+  const cfg = loadConfig({}, { 'doubles-per-week': 0 });
+  const store = openStore(':memory:');
+  const bot = fakeBot();
+  const r = await runOnce({ cfg, store, bot, now: new Date('2026-10-14T12:00:00Z'), fixture: FIXTURE });
+  assert.equal(r.doublesSent, 0);
+  store.close();
+
+  const s2 = openStore(':memory:');
+  const b2 = fakeBot();
+  await runOnce({ cfg: loadConfig({}, {}), store: s2, bot: b2, now: new Date('2026-10-14T12:00:00Z'), fixture: FIXTURE });
+  const id = b2.sent.find((m) => /Fun double/.test(m.text)).buttons[0][0].callback_data.split(':')[1];
+  b2.queue = [tap(`place:${id}`), say('/result D1 lost'), say('/bets')];
+  b2.sent = [];
+  await runOnce({ cfg: loadConfig({}, {}), store: s2, bot: b2, now: new Date('2026-10-14T12:05:00Z'), fixture: FIXTURE });
+  assert.ok(b2.sent.some((m) => /Double D1: lost -£0\.20/.test(m.text)));
+  assert.equal(s2.bankroll(100), 99.8);
+  s2.close();
 });

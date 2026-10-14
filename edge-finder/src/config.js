@@ -26,6 +26,15 @@ const DEFAULTS = {
   minConsensusBooks: 5,
   onePerEvent: true,
   maxPicksPerDay: 0, // 0 = no limit
+  doubles: false,
+  doubleStake: 0.2,
+  doublesPerWeek: 5,
+  doubleMinOdds: 51, // 50/1
+  doubleMaxOdds: 151, // 150/1
+  doubleMinEdge: 0.05,
+  legMinEdge: 0.02,
+  legMinOdds: 1.5,
+  legMaxOdds: 40,
   creditBudget: true, // spread the month's API credits evenly over the remaining runs
   runsPerDay: 2,
   stopLossPct: 0.3, // pause once the bankroll has fallen this far from its starting point
@@ -51,6 +60,7 @@ export const PROFILES = {
     maxOdds: 1.4,
     minEdge: 0.015,
     maxPicksPerDay: 5,
+    doubles: true,
   },
   value: {},
 };
@@ -62,6 +72,9 @@ const ENV = {
   minProb: 'EDGE_MIN_PROB', minOdds: 'EDGE_MIN_ODDS', maxOdds: 'EDGE_MAX_ODDS',
   maxStaleMinutes: 'EDGE_MAX_STALE_MINUTES', minLeadMinutes: 'EDGE_MIN_LEAD_MINUTES',
   lookaheadHours: 'EDGE_LOOKAHEAD_HOURS', maxPicksPerDay: 'EDGE_MAX_PICKS_PER_DAY',
+  doubles: 'EDGE_DOUBLES', doubleStake: 'EDGE_DOUBLE_STAKE', doublesPerWeek: 'EDGE_DOUBLES_PER_WEEK',
+  doubleMinOdds: 'EDGE_DOUBLE_MIN_ODDS', doubleMaxOdds: 'EDGE_DOUBLE_MAX_ODDS', doubleMinEdge: 'EDGE_DOUBLE_MIN_EDGE',
+  legMinEdge: 'EDGE_LEG_MIN_EDGE', legMinOdds: 'EDGE_LEG_MIN_ODDS', legMaxOdds: 'EDGE_LEG_MAX_ODDS',
   creditBudget: 'EDGE_CREDIT_BUDGET', runsPerDay: 'EDGE_RUNS_PER_DAY',
   devigMethod: 'EDGE_DEVIG_METHOD', consensus: 'EDGE_CONSENSUS',
   minConsensusBooks: 'EDGE_MIN_CONSENSUS_BOOKS', onePerEvent: 'EDGE_ONE_PER_EVENT', db: 'EDGE_DB',

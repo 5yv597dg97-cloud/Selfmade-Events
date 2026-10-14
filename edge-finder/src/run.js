@@ -2,7 +2,8 @@
 // finished bets, check the stop-loss, then scan and send any new picks.
 import { scan, currentFairProb } from './scanner.js';
 import { loadEvents, settleFinished } from './events.js';
-import { report } from './store.js';
+import { report, doublesReport } from './store.js';
+import { findDoubles, fractional } from './doubles.js';
 import { manualResult } from './settle.js';
 import { esc } from './telegram.js';
 import { money, pct, when, selection, ukDate } from './format.js';
@@ -15,7 +16,7 @@ const icon = (sport) => ICON[sport.split('_')[0]] ?? '🎯';
 
 export const HELP = `<b>Commands</b>
 /placed &lt;pick&gt; [odds] [stake]: log a pick, e.g. <code>/placed 3a2fce56 1.16 2</code> if you got a different price
-/result &lt;bet&gt; &lt;won|lost|void&gt;: settle a bet by hand (tennis retirements, MMA)
+/result &lt;bet&gt; &lt;won|lost|void&gt;: settle a bet by hand (tennis retirements, MMA, cricket); doubles are D1, D2…
 /bets: open bets
 /report: bankroll, win rate, profit
 /resume: restart after the stop-loss paused betting
@@ -33,6 +34,17 @@ export function pickMessage(p) {
   ].join('\n');
 }
 
+export function doubleMessage(d) {
+  return [
+    `🎲 <b>Fun double</b> @ <b>${d.odds}</b> (${fractional(d.odds)}) with ${esc(d.bookTitle)}`,
+    ...d.legs.map((l, i) => `${i + 1}. ${icon(l.sport)} ${esc(selection(l))} @ ${l.odds} · ${esc(l.home)} v ${esc(l.away)} · ${when(l.commenceTime)}`),
+    `Wins about 1 in ${Math.round(1 / d.fairProb)} (fair odds ${d.fairOdds.toFixed(1)}) · edge +${pct(d.ev, 0)}`,
+    `Stake <b>${money(d.stake)}</b> to win ${money(d.stake * (d.odds - 1))}. Still worth it at ${d.minPrice} or better combined.`,
+    `<i>A long shot: expect to lose most of these. Not counted in your win rate.</i>`,
+    `Pick <code>${d.id}</code>`,
+  ].join('\n');
+}
+
 function reportText(store, cfg) {
   const r = report(store.all());
   const bank = store.bankroll(cfg.bankroll);
@@ -42,12 +54,18 @@ function reportText(store, cfg) {
     lines.push(`Profit ${money(r.pnl)} on ${money(r.staked)} staked (ROI ${pct(r.roi)})`);
     if (r.decided < 300) lines.push(`<i>True win rate likely ${pct(r.winRateLow, 0)}–${pct(r.winRateHigh, 0)}; it narrows as bets add up.</i>`);
   }
+  const d = doublesReport(store.allDoubles());
+  if (d.placed) lines.push(`🎲 Fun doubles: ${d.placed} placed, ${d.won} won, ${d.lost} lost · ${money(d.pnl)}`);
   return lines.join('\n');
 }
 
 function placeBet(store, pick, { odds = pick.odds, stake = pick.stake, now }) {
-  const id = store.addBet(pick, { odds, stake, now });
   store.setPickStatus(pick.id, 'placed');
+  if (pick.kind === 'double') {
+    const id = store.addDouble(pick, { odds, stake, now });
+    return `✅ Logged double D${id} @ ${odds}, ${money(stake)}`;
+  }
+  const id = store.addBet(pick, { odds, stake, now });
   return `✅ Logged bet ${id}: ${esc(selection(pick))} @ ${odds}, ${money(stake)}`;
 }
 
@@ -99,6 +117,14 @@ async function onCommand(msg, { store, bot, cfg, now }) {
       return reply(placeBet(store, pick, { odds, stake, now }) + warning);
     }
     case '/result': {
+      if (/^d\d+$/i.test(args[0] ?? '')) {
+        const dbl = store.getDouble(Number(args[0].slice(1)));
+        if (!dbl) return reply(`No double ${esc(args[0])}. Send /bets to see them.`);
+        if (dbl.status !== 'open') return reply(`Double D${dbl.id} is already settled (${dbl.status}).`);
+        const result = manualResult(dbl, (args[1] ?? '').toLowerCase());
+        store.settleDouble(dbl.id, result, now);
+        return reply(`Double D${dbl.id}: ${result.status} ${money(result.pnl)}`);
+      }
       const bet = store.get(Number(args[0]));
       if (!bet) return reply(`No bet ${esc(args[0] ?? '')}. Send /bets to see their numbers.`);
       if (bet.status !== 'open') return reply(`Bet ${bet.id} is already settled (${bet.status}).`);
@@ -107,9 +133,11 @@ async function onCommand(msg, { store, bot, cfg, now }) {
       return reply(`Bet ${bet.id}: ${result.status} ${money(result.pnl)}`);
     }
     case '/bets': {
-      const open = store.open();
-      if (!open.length) return reply('No open bets.');
-      return reply(open.map((b) => `<b>${b.id}</b> ${esc(selection(b))} @ ${b.odds}, ${money(b.stake)} · ${when(b.commence_time)}`).join('\n'));
+      const lines = [
+        ...store.open().map((b) => `<b>${b.id}</b> ${esc(selection(b))} @ ${b.odds}, ${money(b.stake)} · ${when(b.commence_time)}`),
+        ...store.openDoubles().map((d) => `<b>D${d.id}</b> 🎲 ${d.legs.map((l) => `${esc(selection(l))}${l.result ? ` (${l.result})` : ''}`).join(' + ')} @ ${d.odds}, ${money(d.stake)}`),
+      ];
+      return reply(lines.length ? lines.join('\n') : 'No open bets.');
     }
     case '/report':
       return reply(reportText(store, cfg));
@@ -151,21 +179,31 @@ export async function runOnce({ cfg, store, bot, now = new Date(), fixture, scor
   await handleUpdates({ store, bot, cfg, now });
 
   // Settle before scanning so the bankroll (and the stakes) are up to date.
-  const { settled } = await settleFinished(store, cfg, { now, scoresFile, fetchImpl });
+  const { settled, settledDoubles } = await settleFinished(store, cfg, { now, scoresFile, fetchImpl });
   for (const s of settled) {
     const mark = { won: '✅', lost: '❌' }[s.status] ?? '➖';
     await bot.send(`${mark} Bet ${s.bet.id} ${s.status}: ${esc(s.bet.home)} ${s.home}–${s.away} ${esc(s.bet.away)} · ${esc(selection(s.bet))} · ${money(s.pnl)}`);
   }
-  // MMA and some tennis have no scores in the API; ask once the result should be known.
-  const unsettled = store.open().filter((b) => Date.parse(b.commence_time) < now.getTime() - 24 * 3600e3);
-  if (unsettled.length) {
-    await bot.send(`Please settle by hand (no score found):\n${unsettled.map((b) => `<b>${b.id}</b> ${esc(selection(b))}: <code>/result ${b.id} won</code> or <code>lost</code>`).join('\n')}`);
+  for (const s of settledDoubles) {
+    const mark = { won: '🎉', lost: '❌' }[s.status] ?? '➖';
+    const legs = s.double.legs.map((l) => `${esc(selection(l))} ${l.result ? `(${l.result}${l.score ? ` ${l.score}` : ''})` : ''}`).join(' + ');
+    await bot.send(`${mark} Double D${s.double.id} ${s.status}: ${legs} · ${money(s.pnl)}`);
   }
+  // MMA, cricket and some tennis have no scores in the API; ask once the result should be known.
+  const dayAgo = now.getTime() - 24 * 3600e3;
+  const unsettled = [
+    ...store.open().filter((b) => Date.parse(b.commence_time) < dayAgo)
+      .map((b) => `<b>${b.id}</b> ${esc(selection(b))}: <code>/result ${b.id} won</code> or <code>lost</code>`),
+    ...store.openDoubles().filter((d) => d.legs.every((l) => l.result || Date.parse(l.commenceTime) < dayAgo))
+      .map((d) => `<b>D${d.id}</b> 🎲 double: <code>/result D${d.id} won</code> or <code>lost</code>`),
+  ];
+  if (unsettled.length) await bot.send(`Please settle by hand (no score found):\n${unsettled.join('\n')}`);
 
   const bankroll = store.bankroll(cfg.bankroll);
   const stop = store.stopLevel(cfg.bankroll, cfg.stopLossPct);
   const footer = [];
   let sent = 0;
+  let doublesSent = 0;
   const diag = { events: 0, skipped: [], overBudget: [], budget: Infinity, errors: [], remaining: null, found: 0 };
 
   if (bankroll <= stop) {
@@ -189,13 +227,25 @@ export async function runOnce({ cfg, store, bot, now = new Date(), fixture, scor
       store.recordPick(p, now);
       sent++;
     }
+
+    if (cfg.doubles && cfg.books.length) {
+      const weekAgo = new Date(now.getTime() - 7 * 864e5);
+      const room = Math.max(0, cfg.doublesPerWeek - store.doublesSentSince(weekAgo));
+      const doubles = findDoubles(events, cfg, now.getTime()).filter((d) => !store.pick(d.id)).slice(0, room);
+      for (const d of doubles) {
+        await bot.send(doubleMessage(d), { buttons: [[{ text: '✅ Placed', callback_data: `place:${d.id}` }, { text: 'Skip', callback_data: `skip:${d.id}` }]] });
+        store.recordPick(d, now);
+        doublesSent++;
+      }
+    }
+
     if (found.length > picks.length) footer.push(`${found.length - picks.length} more pick${found.length - picks.length === 1 ? '' : 's'} held back by your ${cfg.maxPicksPerDay}-a-day limit.`);
-    else if (!sent) footer.push('No new picks this time. Most scans find none; that is normal.');
+    else if (!sent && !doublesSent) footer.push('No new picks this time. Most scans find none; that is normal.');
     footer.push(...missingBooks(store, cfg, events));
     if (errors.length) footer.push(`⚠️ Couldn't load: ${esc(errors.join('; '))}`);
     if (remaining != null && remaining < 60) footer.push(`⚠️ Only ${remaining} Odds API credits left this month.`);
   }
 
   await bot.send([reportText(store, cfg), ...footer].join('\n\n'));
-  return { sent, settled: settled.length, bankroll, paused: bankroll <= stop, ...diag };
+  return { sent, doublesSent, settled: settled.length + settledDoubles.length, bankroll, paused: bankroll <= stop, ...diag };
 }

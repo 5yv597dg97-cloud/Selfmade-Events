@@ -35,6 +35,20 @@ export function openStore(path) {
       status TEXT NOT NULL DEFAULT 'sent' CHECK (status IN ('sent', 'placed', 'skipped'))
     );
     CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS doubles (
+      id INTEGER PRIMARY KEY,
+      pick_id TEXT NOT NULL,
+      placed_at TEXT NOT NULL,
+      book TEXT NOT NULL,
+      legs TEXT NOT NULL, -- JSON; each leg gets a result once its match is graded
+      odds REAL NOT NULL CHECK (odds > 1),
+      stake REAL NOT NULL CHECK (stake > 0),
+      fair_prob REAL NOT NULL,
+      ev REAL NOT NULL,
+      status TEXT NOT NULL DEFAULT 'open',
+      pnl REAL,
+      settled_at TEXT
+    );
   `);
   const getMeta = (key) => db.prepare('SELECT value FROM meta WHERE key = ?').get(key)?.value ?? null;
   const setMeta = (key, value) => db.prepare(
@@ -64,6 +78,31 @@ export function openStore(path) {
     },
     getMeta,
     setMeta,
+    addDouble(pick, { odds = pick.odds, stake = pick.stake, now = new Date() } = {}) {
+      const legs = pick.legs.map((l) => ({ ...l, result: null }));
+      const { lastInsertRowid } = db.prepare(`
+        INSERT INTO doubles (pick_id, placed_at, book, legs, odds, stake, fair_prob, ev) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(pick.id, now.toISOString(), pick.book, JSON.stringify(legs), odds, stake, pick.fairProb, pick.fairProb * odds - 1);
+      return Number(lastInsertRowid);
+    },
+    getDouble(id) {
+      const row = db.prepare('SELECT * FROM doubles WHERE id = ?').get(id);
+      return row && { ...row, legs: JSON.parse(row.legs) };
+    },
+    openDoubles: () => db.prepare("SELECT * FROM doubles WHERE status = 'open' ORDER BY placed_at").all()
+      .map((r) => ({ ...r, legs: JSON.parse(r.legs) })),
+    allDoubles: () => db.prepare('SELECT * FROM doubles ORDER BY placed_at').all(),
+    setDoubleLegs(id, legs) {
+      db.prepare('UPDATE doubles SET legs = ? WHERE id = ?').run(JSON.stringify(legs), id);
+    },
+    settleDouble(id, { status, pnl }, at = new Date()) {
+      db.prepare('UPDATE doubles SET status = ?, pnl = ?, settled_at = ? WHERE id = ?').run(status, pnl, at.toISOString(), id);
+    },
+    /** Doubles sent to you in the 7 days before `now`. */
+    doublesSentSince(since) {
+      return db.prepare('SELECT data FROM picks WHERE sent_at >= ?').all(since.toISOString())
+        .filter((r) => JSON.parse(r.data).kind === 'double').length;
+    },
     pick(id) {
       const row = db.prepare('SELECT * FROM picks WHERE id = ?').get(id);
       return row && { ...JSON.parse(row.data), status: row.status };
@@ -75,14 +114,16 @@ export function openStore(path) {
     picksSentOn(now, ukDate) {
       const since = new Date(now.getTime() - 26 * 3600e3).toISOString();
       const today = ukDate(now);
-      return db.prepare('SELECT sent_at FROM picks WHERE sent_at >= ?').all(since).filter((r) => ukDate(r.sent_at) === today).length;
+      return db.prepare('SELECT sent_at, data FROM picks WHERE sent_at >= ?').all(since)
+        .filter((r) => ukDate(r.sent_at) === today && JSON.parse(r.data).kind !== 'double').length;
     },
     setPickStatus(id, status) {
       db.prepare('UPDATE picks SET status = ? WHERE id = ?').run(status, id);
     },
-    /** Starting bankroll plus all settled profit and loss. */
+    /** Starting bankroll plus all settled profit and loss, singles and doubles. */
     bankroll(start) {
-      return start + (db.prepare("SELECT COALESCE(SUM(pnl), 0) AS p FROM bets WHERE status != 'open'").get().p);
+      const sum = (table) => db.prepare(`SELECT COALESCE(SUM(pnl), 0) AS p FROM ${table} WHERE status != 'open'`).get().p;
+      return Math.round((start + sum('bets') + sum('doubles')) * 100) / 100;
     },
     /**
      * The bankroll level that pauses betting: a fixed drop from the starting
@@ -128,6 +169,18 @@ export function report(bets) {
     breakEvenWinRate: decided.length ? decided.reduce((a, b) => a + 1 / b.odds, 0) / decided.length : 0,
     winRateLow,
     winRateHigh,
+  };
+}
+
+export function doublesReport(doubles) {
+  const settled = doubles.filter((d) => d.status !== 'open');
+  return {
+    placed: doubles.length,
+    open: doubles.length - settled.length,
+    won: settled.filter((d) => d.status === 'won').length,
+    lost: settled.filter((d) => d.status === 'lost').length,
+    staked: settled.reduce((a, d) => a + d.stake, 0),
+    pnl: settled.reduce((a, d) => a + d.pnl, 0),
   };
 }
 

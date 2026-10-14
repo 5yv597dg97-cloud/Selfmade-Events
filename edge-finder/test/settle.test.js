@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { grade, manualResult } from '../src/settle.js';
+import { grade, manualResult, doubleOutcome } from '../src/settle.js';
 import { report, wilson } from '../src/store.js';
 
 const bet = (o) => ({ home: 'H', away: 'A', odds: 2, stake: 10, ...o });
@@ -63,4 +63,13 @@ test('the win-rate range narrows with more bets', () => {
   const [lo300, hi300] = wilson(240, 300);
   assert.ok(hi300 - lo300 < hi10 - lo10);
   assert.ok(hi300 - lo300 < 0.1);
+});
+
+test('doubles: lost on any losing leg, void legs count as 1, pending until all decided', () => {
+  const d = (a, b) => ({ stake: 0.2, legs: [{ odds: 5, result: a }, { odds: 20, result: b }] });
+  assert.deepEqual(doubleOutcome(d('lost', null)), { status: 'lost', pnl: -0.2 });
+  assert.equal(doubleOutcome(d('won', null)), null);
+  assert.deepEqual(doubleOutcome(d('won', 'won')), { status: 'won', pnl: 19.8 });
+  assert.deepEqual(doubleOutcome(d('void', 'won')), { status: 'won', pnl: 3.8 });
+  assert.deepEqual(doubleOutcome(d('void', 'void')), { status: 'void', pnl: 0 });
 });

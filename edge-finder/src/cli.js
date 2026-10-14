@@ -8,6 +8,7 @@ import { manualResult } from './settle.js';
 import { loadEvents as fetchEvents, settleFinished } from './events.js';
 import { telegram } from './telegram.js';
 import { runOnce, linkChat, HELP as BOT_HELP } from './run.js';
+import { findDoubles, fractional } from './doubles.js';
 import { gbp, pct, when, selection } from './format.js';
 
 const LAST_SCAN = '.last-scan.json';
@@ -122,8 +123,17 @@ async function main() {
     const live = { ...cfg, bankroll, stopLevel, paused: bankroll <= stopLevel };
     const picks = live.paused ? [] : scan(events, live, now.getTime());
     writeFileSync(LAST_SCAN, JSON.stringify(picks, null, 2));
-    if (flags.json) return console.log(JSON.stringify(picks, null, 2));
-    return printPicks(picks, live);
+    const doubles = live.paused || !cfg.doubles || !cfg.books.length ? [] : findDoubles(events, live, now.getTime());
+    if (flags.json) return console.log(JSON.stringify({ picks, doubles }, null, 2));
+    printPicks(picks, live);
+    if (doubles.length) {
+      console.log(`\nFun doubles (${gbp.format(cfg.doubleStake)} each, not part of the win rate)\n`);
+      for (const d of doubles) {
+        console.log(`[${d.id}] ${d.odds} (${fractional(d.odds)}) with ${d.bookTitle}: wins about 1 in ${Math.round(1 / d.fairProb)}, edge +${pct(d.ev, 0)}`);
+        for (const l of d.legs) console.log(`    ${selection(l)} @ ${l.odds}  ·  ${l.home} v ${l.away}  ·  ${when(l.commenceTime)}`);
+      }
+    }
+    return;
   }
 
   const store = openStore(cfg.db);
@@ -136,7 +146,7 @@ async function main() {
       const bot = telegram({ token: cfg.telegramToken, chatId });
       if (isNew) await bot.send(`👋 Linked to this chat. Picks will arrive here around 9am and 5pm.\n\n${BOT_HELP}`);
       const r = await runOnce({ cfg, store, bot, now, fixture: flags.fixture, scoresFile: flags.scores });
-      console.log(`Sent ${r.sent} picks, settled ${r.settled} bets, bankroll ${gbp.format(r.bankroll)}${r.paused ? ' (paused)' : ''}`);
+      console.log(`Sent ${r.sent} picks and ${r.doublesSent} doubles, settled ${r.settled} bets, bankroll ${gbp.format(r.bankroll)}${r.paused ? ' (paused)' : ''}`);
       console.log(`Matches with odds: ${r.events} · value picks found: ${r.found} · API credits left: ${r.remaining ?? 'unknown'}`);
       if (r.budget !== Infinity) console.log(`Credit budget this run: ${r.budget}`);
       if (r.skipped.length) console.log(`Skipped (nothing in the next ${cfg.lookaheadHours}h): ${r.skipped.join(', ')}`);
