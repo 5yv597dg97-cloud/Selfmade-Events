@@ -13,9 +13,14 @@ async function get(path, params, fetchImpl) {
   return { data: await res.json(), remaining: res.headers.get('x-requests-remaining') };
 }
 
-export function fetchOdds({ apiKey, sport, regions, markets, fetchImpl = fetch }) {
+/**
+ * Naming up to 10 bookmakers costs the same as one region, which is far cheaper
+ * than the two regions needed to cover Pinnacle and the UK books.
+ */
+export function fetchOdds({ apiKey, sport, regions, bookmakers, markets, fetchImpl = fetch }) {
+  const where = bookmakers?.length ? { bookmakers: bookmakers.slice(0, 10).join(',') } : { regions };
   return get(`/sports/${sport}/odds`, {
-    apiKey, regions, markets, oddsFormat: 'decimal', dateFormat: 'iso',
+    apiKey, ...where, markets, oddsFormat: 'decimal', dateFormat: 'iso',
   }, fetchImpl);
 }
 

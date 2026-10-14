@@ -1,0 +1,77 @@
+name: edge-finder
+
+on:
+  schedule:
+    # GitHub runs schedules in UTC: 9am and 5pm in UK winter, 10am and 6pm in summer.
+    - cron: '7 9,17 * * *'
+  workflow_dispatch: # "Run workflow" button for a run on demand
+
+concurrency:
+  group: edge-finder
+  cancel-in-progress: false
+
+permissions:
+  contents: write # to save the bet history to the edge-data branch
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: edge-finder
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # The bet log is a SQLite file kept on its own branch between runs,
+      # encrypted because the branch is as public as the repository.
+      - name: Restore bet history
+        id: restore
+        env:
+          EDGE_DATA_KEY: ${{ secrets.EDGE_DATA_KEY }}
+        run: |
+          if [ -z "$EDGE_DATA_KEY" ]; then
+            echo "Add an EDGE_DATA_KEY secret (any long password) to encrypt the bet history."
+            exit 1
+          fi
+          set +e
+          git ls-remote --exit-code --heads origin edge-data > /dev/null
+          code=$?
+          set -e
+          if [ "$code" -eq 0 ]; then
+            git fetch --depth=1 origin edge-data
+            git show FETCH_HEAD:edge-finder.db.enc \
+              | openssl enc -d -aes-256-cbc -pbkdf2 -pass env:EDGE_DATA_KEY -out edge-finder.db
+          elif [ "$code" -ne 2 ]; then
+            echo "Couldn't check for saved bet history; stopping rather than starting a fresh one."
+            exit 1
+          fi
+
+      - name: Scan and notify
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          EDGE_BANKROLL: ${{ vars.EDGE_BANKROLL || '100' }}
+        run: node --disable-warning=ExperimentalWarning src/cli.js run
+
+      # Saved even if the run failed part-way, so logged bets and sent picks aren't lost.
+      - name: Save bet history
+        if: always() && steps.restore.outcome == 'success'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EDGE_DATA_KEY: ${{ secrets.EDGE_DATA_KEY }}
+        run: |
+          [ -f edge-finder.db ] || exit 0
+          dir=$(mktemp -d)
+          openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:EDGE_DATA_KEY -in edge-finder.db -out "$dir/edge-finder.db.enc"
+          cd "$dir"
+          git init -q -b edge-data
+          git add edge-finder.db.enc
+          git -c user.name="edge-finder" -c user.email="edge-finder@users.noreply.github.com" \
+            commit -q -m "Bet history $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:edge-data

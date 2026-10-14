@@ -1,10 +1,14 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { loadConfig } from './config.js';
-import { fetchOdds, fetchScores, fetchSports } from './odds-api.js';
+import { fetchSports } from './odds-api.js';
 import { scan, currentFairProb } from './scanner.js';
 import { openStore, report } from './store.js';
-import { grade, manualResult } from './settle.js';
+import { manualResult } from './settle.js';
+import { loadEvents as fetchEvents, settleFinished } from './events.js';
+import { telegram } from './telegram.js';
+import { runOnce } from './run.js';
+import { gbp, pct, when, selection } from './format.js';
 
 const LAST_SCAN = '.last-scan.json';
 
@@ -21,6 +25,8 @@ Usage: npm run edge -- <command> [options]
   settle <bet> <result>  Set a result by hand: won, lost, push, void, half-won, half-lost
   report               Profit, ROI, and closing line value
   sports               List sport keys your API key can query
+  run                  The scheduled job: Telegram taps/commands, settle, scan, send picks
+  telegram-setup       Show your Telegram chat ID (message your bot first)
 
 Scan options (or the env vars in README.md):
   --profile safe|value   safe (default): 75%+ win chance, tennis & MMA, Paddy Power/Betfair Sportsbook
@@ -48,49 +54,20 @@ function parseArgs(argv) {
   return { positional, flags };
 }
 
-const gbp = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' });
-const pct = (x, digits = 1) => `${(x * 100).toFixed(digits)}%`;
-const when = (iso) => new Date(iso).toLocaleString('en-GB', {
-  timeZone: 'Europe/London', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
-});
-
-function selection(p) {
-  if (p.market === 'h2h') return p.outcome === 'Draw' ? 'Draw' : `${p.outcome} to win`;
-  const pt = p.point > 0 && p.market === 'spreads' ? `+${p.point}` : p.point;
-  return `${p.outcome} ${pt}`;
-}
-
 async function loadEvents(cfg, flags, sports = cfg.sports) {
-  if (flags.fixture) return JSON.parse(readFileSync(flags.fixture, 'utf8'));
-  if (!cfg.apiKey) throw new Error('Set ODDS_API_KEY (free key at https://the-odds-api.com) or use --fixture');
-  const events = [];
-  let remaining;
-  for (const sport of await expandSports(cfg, sports)) {
-    try {
-      const res = await fetchOdds({ apiKey: cfg.apiKey, sport, regions: cfg.regions, markets: cfg.markets });
-      events.push(...res.data);
-      remaining = res.remaining;
-    } catch (err) {
-      console.error(`  ! ${sport}: ${err.message}`);
-    }
-  }
+  const { events, remaining, errors } = await fetchEvents(cfg, { sports, fixture: flags.fixture });
+  for (const e of errors) console.error(`  ! ${e}`);
   if (remaining != null) console.error(`  (Odds API credits left: ${remaining})`);
   return events;
-}
-
-/** Turns "tennis_*" into every tennis competition currently open (the sports list costs no credits). */
-async function expandSports(cfg, sports) {
-  if (!sports.some((s) => s.endsWith('*'))) return sports;
-  const { data } = await fetchSports({ apiKey: cfg.apiKey });
-  const active = data.filter((s) => s.active && !s.has_outrights).map((s) => s.key);
-  const out = sports.flatMap((s) => (s.endsWith('*') ? active.filter((k) => k.startsWith(s.slice(0, -1))) : [s]));
-  console.error(`  Scanning ${out.length} competitions: ${out.join(', ')}`);
-  return [...new Set(out)];
 }
 
 function printPicks(picks, cfg) {
   if (!picks.length) {
     console.log('No value bets right now. That is the normal state of an efficient market; check again later.');
+    return;
+  }
+  if (cfg.paused) {
+    console.log(`Paused: bankroll ${gbp.format(cfg.bankroll)} is at or below the ${gbp.format(cfg.stopLevel)} stop-loss.`);
     return;
   }
   console.log(`Value bets, "${cfg.profile}" profile  (win chance ≥ ${pct(cfg.minProb, 0)}, bankroll ${gbp.format(cfg.bankroll)}, ${cfg.kellyFraction}x Kelly, cap ${pct(cfg.maxStakePct)} per bet)\n`);
@@ -121,16 +98,42 @@ async function main() {
     return;
   }
 
+  if (command === 'telegram-setup') {
+    if (!cfg.telegramToken) throw new Error('Set TELEGRAM_BOT_TOKEN first (from @BotFather)');
+    const chats = new Map();
+    for (const u of await telegram({ token: cfg.telegramToken }).updates()) {
+      const chat = (u.message ?? u.callback_query?.message)?.chat;
+      if (chat) chats.set(chat.id, chat.first_name ?? chat.title ?? '');
+    }
+    if (!chats.size) return console.log('No messages yet. Send your bot any message in Telegram, then run this again.');
+    for (const [id, name] of chats) console.log(`TELEGRAM_CHAT_ID=${id}   (${name})`);
+    return;
+  }
+
   if (command === 'scan') {
     const events = await loadEvents(cfg, flags);
-    const picks = scan(events, cfg, now.getTime());
+    // Size stakes from the current bankroll, and respect the stop-loss.
+    const store = openStore(cfg.db);
+    const bankroll = store.bankroll(cfg.bankroll);
+    const stopLevel = store.stopLevel(cfg.bankroll, cfg.stopLossPct);
+    store.close();
+    const live = { ...cfg, bankroll, stopLevel, paused: bankroll <= stopLevel };
+    const picks = live.paused ? [] : scan(events, live, now.getTime());
     writeFileSync(LAST_SCAN, JSON.stringify(picks, null, 2));
     if (flags.json) return console.log(JSON.stringify(picks, null, 2));
-    return printPicks(picks, cfg);
+    return printPicks(picks, live);
   }
 
   const store = openStore(cfg.db);
   try {
+    if (command === 'run') {
+      if (!cfg.telegramToken || !cfg.telegramChatId) throw new Error('Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID (see README)');
+      const bot = telegram({ token: cfg.telegramToken, chatId: cfg.telegramChatId });
+      const r = await runOnce({ cfg, store, bot, now, fixture: flags.fixture, scoresFile: flags.scores });
+      console.log(`Sent ${r.sent} picks, settled ${r.settled} bets, bankroll ${gbp.format(r.bankroll)}${r.paused ? ' (paused)' : ''}`);
+      return;
+    }
+
     if (command === 'place') {
       if (!existsSync(LAST_SCAN)) throw new Error('Run "scan" first');
       const picks = JSON.parse(readFileSync(LAST_SCAN, 'utf8'));
@@ -178,29 +181,10 @@ async function main() {
         store.settle(bet.id, result, now);
         return console.log(`Bet ${bet.id}: ${result.status} ${gbp.format(result.pnl)}`);
       }
-      const open = store.open().filter((b) => new Date(b.commence_time) < now);
-      if (!open.length) return console.log('No open bets that have started.');
-      for (const sport of new Set(open.map((b) => b.sport))) {
-        let games;
-        try {
-          games = flags.scores
-            ? JSON.parse(readFileSync(flags.scores, 'utf8'))
-            : (await fetchScores({ apiKey: cfg.apiKey, sport })).data;
-        } catch (err) {
-          console.log(`No scores for ${sport} (${err.message}); settle these by hand with "settle <bet> <result>"`);
-          continue;
-        }
-        for (const b of open.filter((x) => x.sport === sport)) {
-          const g = games.find((x) => x.id === b.event_id);
-          if (!g?.completed || !g.scores) continue;
-          const score = (team) => Number(g.scores.find((s) => s.name === team)?.score);
-          const [h, a] = [score(b.home), score(b.away)];
-          if (!Number.isFinite(h) || !Number.isFinite(a)) continue;
-          const result = grade(b, h, a);
-          store.settle(b.id, result, now);
-          console.log(`Bet ${b.id}: ${b.home} ${h}-${a} ${b.away} → ${result.status} ${gbp.format(result.pnl)}`);
-        }
-      }
+      const { settled, noScores } = await settleFinished(store, cfg, { now, scoresFile: flags.scores });
+      for (const r of settled) console.log(`Bet ${r.bet.id}: ${r.bet.home} ${r.home}-${r.away} ${r.bet.away} → ${r.status} ${gbp.format(r.pnl)}`);
+      for (const sport of noScores) console.log(`No scores for ${sport}; settle these by hand with "settle <bet> <result>"`);
+      if (!settled.length && !noScores.length) console.log('Nothing to settle yet.');
       console.log('Check results against your bookmaker\'s rules (e.g. tennis retirements, extra time, cancelled fights) and fix any with "settle <bet> <result>".');
       return;
     }
@@ -208,6 +192,7 @@ async function main() {
     if (command === 'report') {
       const r = report(store.all());
       if (flags.json) return console.log(JSON.stringify(r, null, 2));
+      console.log(`Bankroll ${gbp.format(store.bankroll(cfg.bankroll))} (started ${gbp.format(cfg.bankroll)})`);
       console.log(`Bets: ${r.bets} (${r.open} open, ${r.settled} settled)`);
       console.log(`Staked ${gbp.format(r.staked)} · profit ${gbp.format(r.pnl)} · ROI ${pct(r.roi)}`);
       console.log(`Expected profit on settled bets: ${gbp.format(r.expectedPnl)} (average edge at bet time ${pct(r.avgEv)})`);

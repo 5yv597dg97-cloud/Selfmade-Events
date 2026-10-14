@@ -27,7 +27,19 @@ export function openStore(path) {
       pnl REAL,
       settled_at TEXT
     );
+    -- Picks sent to Telegram, so each is sent once and the buttons can find it later.
+    CREATE TABLE IF NOT EXISTS picks (
+      id TEXT PRIMARY KEY,
+      data TEXT NOT NULL,
+      sent_at TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'sent' CHECK (status IN ('sent', 'placed', 'skipped'))
+    );
+    CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
   `);
+  const getMeta = (key) => db.prepare('SELECT value FROM meta WHERE key = ?').get(key)?.value ?? null;
+  const setMeta = (key, value) => db.prepare(
+    'INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value',
+  ).run(key, String(value));
 
   return {
     db,
@@ -49,6 +61,30 @@ export function openStore(path) {
     },
     settle(id, { status, pnl }, at = new Date()) {
       db.prepare('UPDATE bets SET status = ?, pnl = ?, settled_at = ? WHERE id = ?').run(status, pnl, at.toISOString(), id);
+    },
+    getMeta,
+    setMeta,
+    pick(id) {
+      const row = db.prepare('SELECT * FROM picks WHERE id = ?').get(id);
+      return row && { ...JSON.parse(row.data), status: row.status };
+    },
+    recordPick(pick, at = new Date()) {
+      db.prepare('INSERT OR IGNORE INTO picks (id, data, sent_at) VALUES (?, ?, ?)').run(pick.id, JSON.stringify(pick), at.toISOString());
+    },
+    setPickStatus(id, status) {
+      db.prepare('UPDATE picks SET status = ? WHERE id = ?').run(status, id);
+    },
+    /** Starting bankroll plus all settled profit and loss. */
+    bankroll(start) {
+      return start + (db.prepare("SELECT COALESCE(SUM(pnl), 0) AS p FROM bets WHERE status != 'open'").get().p);
+    },
+    /**
+     * The bankroll level that pauses betting: a fixed drop from the starting
+     * bankroll, or from wherever "/resume" last reset it.
+     */
+    stopLevel(start, pct) {
+      const base = Number(getMeta('stop_base') ?? start);
+      return pct > 0 ? base * (1 - pct) : -Infinity;
     },
     close: () => db.close(),
   };

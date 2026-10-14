@@ -30,7 +30,7 @@ Expect a +2–5% average return on stakes *if* everything goes right, with big s
 | Sports | All tennis tournaments, MMA | EPL, Champions League, NBA, NFL, NHL |
 | Market | Match winner only | Match winner, handicaps, over/unders |
 | Bookmakers | Paddy Power, Betfair Sportsbook | Any |
-| Bankroll | £250 | £1,000 |
+| Bankroll | £100, pausing at £70 | £1,000, pausing at £700 |
 
 Choose with `--profile value` or `EDGE_PROFILE=value`. Any setting below overrides the profile.
 
@@ -44,23 +44,62 @@ Picking 75%+ outcomes makes a 75%+ win rate likely, but **win rate on its own do
 
 The system is working when your actual rate stays near the expected rate *and* above break-even, and your closing line value is positive. The report also gives a 95% range for your true win rate: after 20 bets that range is very wide, and it takes about 300 bets to pin a 75% win rate down to within ±5%.
 
-## Setup
+## Setup: picks on your phone
 
-Node.js 22.13+. No dependencies to install.
+Twice a day (about 9am and 5pm UK time), GitHub runs a scan for free and sends each new pick to you on Telegram:
 
-1. Get an API key at [the-odds-api.com](https://the-odds-api.com) (the free tier gives 500 credits a month; a scan costs *markets × regions* credits per sport, so 6 per sport with the defaults).
-2. `export ODDS_API_KEY=your_key`
-3. Optional: `export EDGE_BANKROLL=300` (your betting bankroll in £). The `safe` profile already uses Paddy Power (`paddypower`) and Betfair Sportsbook (`betfair_sb_uk`); set `EDGE_BOOKS` to change them.
+> 🎾 **Jannik Sinner to win** @ **1.18** with Paddy Power
+> Sinner v Gaston · ATP Paris Masters · Thu 15 Oct, 14:00
+> Wins 88% of the time (fair odds 1.14) · break-even 85% · edge +3.9%
+> Stake **£2.00** to win £0.36
+> [ ✅ Placed ] [ Skip ]
 
-Credits: `tennis_*` scans every tennis tournament that's running (finding them is free). With match-winner only and two regions, each tournament or MMA costs 2 credits per scan, so a typical scan of 4–6 competitions uses about 10 credits: roughly 50 scans a month on the free tier.
+Tap **✅ Placed** once you've placed the bet, and it's logged at that price and stake. Every run also settles finished bets, tells you the results, and sends your bankroll and win rate.
 
-Try it with no key using sample odds:
+One-off setup, about 15 minutes:
+
+1. **Odds API key.** Sign up free at [the-odds-api.com](https://the-odds-api.com) and copy your key.
+2. **Telegram bot.** In Telegram, message [@BotFather](https://t.me/BotFather), send `/newbot`, pick any name, and copy the token it gives you. Then open your new bot and send it any message (e.g. "hi").
+3. **Your chat ID.** On a computer with Node.js 22.13+, in this folder: `TELEGRAM_BOT_TOKEN=<token> npm run edge -- telegram-setup`. It prints `TELEGRAM_CHAT_ID=...`. The bot only listens to this chat.
+4. **GitHub secrets.** In the repository on GitHub: *Settings → Secrets and variables → Actions → New repository secret*. Add:
+   - `ODDS_API_KEY`
+   - `TELEGRAM_BOT_TOKEN`
+   - `TELEGRAM_CHAT_ID`
+   - `EDGE_DATA_KEY`: any long password you make up. Your bet history is saved encrypted on the `edge-data` branch, because this repository is public. If you lose this password, the history can't be read.
+   - Optional: under the *Variables* tab, `EDGE_BANKROLL` if you start with something other than £100.
+5. **First run.** *Actions → edge-finder → Run workflow*. Within a minute you should get a summary message on Telegram (and any picks).
+
+After that it runs by itself. The schedule only runs from the repository's default branch.
+
+### Telegram commands
+
+Commands you send are read at the next scheduled run, not instantly.
+
+| Command | What it does |
+|---|---|
+| `/placed <pick> [odds] [stake]` | Log a pick if you got a different price or stake, e.g. `/placed 3a2fce56 1.16 2` |
+| `/result <bet> won\|lost\|void` | Settle a bet by hand. Needed for MMA and some tennis, which have no scores in the API; the bot reminds you |
+| `/bets` | Your open bets |
+| `/report` | Bankroll, win rate, profit |
+| `/resume` | Carry on after the stop-loss paused betting. The new stop is 30% below your bankroll at that point |
+
+### Stop-loss
+
+If your bankroll falls to £70 (30% below the start), picks stop and the bot tells you. Look back over what happened before sending `/resume`. A 30% drop at 75%+ win chances is unlikely to be bad luck alone; it more likely means the prices you're getting aren't the ones the scan found.
+
+### API credits
+
+A run costs 1 credit per competition scanned (each running tennis tournament, plus MMA), plus 2 per competition with a finished bet to settle. Twice a day that is usually 300–450 credits a month, inside the free 500. If you run low, the bot warns you below 60 credits.
+
+## Running it yourself
 
 ```bash
-npm run demo
+npm run demo                            # sample odds, no key needed
+export ODDS_API_KEY=your_key
+npm run edge -- scan
 ```
 
-## Daily use
+## Command line
 
 ```bash
 npm run edge -- scan                         # find value bets
@@ -87,13 +126,15 @@ Environment variables, or the flag in brackets for one run:
 | `EDGE_REGIONS` | `uk,eu` | Odds API regions (`eu` brings Pinnacle, `uk` brings Betfair) |
 | `EDGE_MARKETS` | from profile | Match result, handicaps, over/unders |
 | `EDGE_BOOKS` (`--books`) | from profile | Only show bets at these bookmakers |
-| `EDGE_BANKROLL` (`--bankroll`) | from profile | Betting bankroll in £ |
+| `EDGE_BANKROLL` (`--bankroll`) | from profile | Starting bankroll in £; stakes use the current bankroll (start plus settled profit) |
 | `EDGE_KELLY_FRACTION` | `0.25` | Fraction of full Kelly to stake |
 | `EDGE_MAX_STAKE_PCT` | `0.02` | Most of the bankroll on one bet |
 | `EDGE_MIN_EDGE` (`--min-edge`) | from profile | Minimum expected return per £1 |
 | `EDGE_MAX_EDGE` | `0.15` | Above this, flag as a likely bad line |
 | `EDGE_MIN_PROB` (`--min-prob`) | from profile | Minimum fair win chance |
 | `EDGE_MIN_ODDS` / `EDGE_MAX_ODDS` | from profile | Odds range |
+| `EDGE_STOP_LOSS_PCT` | `0.3` | Pause after the bankroll falls this far (0 = never) |
+| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | | For the `run` command |
 | `EDGE_MAX_STALE_MINUTES` | `10` | Ignore prices older than this |
 | `EDGE_MIN_LEAD_MINUTES` | `5` | Ignore events starting sooner than this |
 | `EDGE_DEVIG_METHOD` | `power` | `power`, `shin` or `multiplicative` |
@@ -107,7 +148,9 @@ Environment variables, or the flag in brackets for one run:
 - `src/scanner.js`: groups each match's prices into comparable lines (same handicap/total across books), gets fair probabilities from the sharp books, filters and ranks picks.
 - `src/kelly.js`: expected value, Kelly fraction, stake.
 - `src/settle.js`: grades bets from scores, including Asian quarter lines.
-- `src/store.js`: SQLite bet log and the report.
+- `src/store.js`: SQLite bet log, sent picks, bankroll and the report.
+- `src/run.js` and `src/telegram.js`: the scheduled job and the Telegram bot.
+- `../.github/workflows/edge-finder.yml`: the twice-daily schedule.
 
 `npm test` runs the tests.
 

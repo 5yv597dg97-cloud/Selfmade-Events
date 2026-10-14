@@ -24,6 +24,9 @@ const DEFAULTS = {
   consensus: false,
   minConsensusBooks: 5,
   onePerEvent: true,
+  stopLossPct: 0.3, // pause once the bankroll has fallen this far from its starting point
+  telegramToken: '',
+  telegramChatId: '',
   db: 'edge-finder.db',
 };
 
@@ -35,7 +38,7 @@ export const PROFILES = {
     sports: 'tennis_*,mma_mixed_martial_arts',
     markets: 'h2h',
     books: 'paddypower,betfair_sb_uk',
-    bankroll: 250,
+    bankroll: 100,
     minProb: 0.75,
     minOdds: 1.1,
     maxOdds: 1.4,
@@ -52,6 +55,7 @@ const ENV = {
   maxStaleMinutes: 'EDGE_MAX_STALE_MINUTES', minLeadMinutes: 'EDGE_MIN_LEAD_MINUTES',
   devigMethod: 'EDGE_DEVIG_METHOD', consensus: 'EDGE_CONSENSUS',
   minConsensusBooks: 'EDGE_MIN_CONSENSUS_BOOKS', onePerEvent: 'EDGE_ONE_PER_EVENT', db: 'EDGE_DB',
+  stopLossPct: 'EDGE_STOP_LOSS_PCT', telegramToken: 'TELEGRAM_BOT_TOKEN', telegramChatId: 'TELEGRAM_CHAT_ID',
 };
 
 const kebab = (s) => s.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
@@ -76,6 +80,7 @@ export function loadConfig(env = process.env, flags = {}) {
   cfg.books = list(cfg.books);
   cfg.marketList = list(cfg.markets);
   if (cfg.kellyFraction <= 0 || cfg.kellyFraction > 1) throw new Error('Kelly fraction must be in (0, 1]');
+  if (cfg.stopLossPct < 0 || cfg.stopLossPct >= 1) throw new Error('Stop-loss must be in [0, 1)');
   if (cfg.maxStakePct <= 0 || cfg.maxStakePct > 0.1) throw new Error('Max stake must be in (0, 0.1] of bankroll');
   return cfg;
 }
