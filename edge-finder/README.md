@@ -29,7 +29,7 @@ Expect a +2–5% average return on stakes *if* everything goes right, with big s
 | Minimum edge | 1.5% | 2% |
 | Sports | All tennis tournaments, MMA, Premier League | EPL, Champions League, NBA, NFL, NHL |
 | Market | Match winner only | Match winner, handicaps, over/unders |
-| Bookmakers | Paddy Power, Betfair Sportsbook, Coral, Ladbrokes | Any |
+| Bookmakers | Paddy Power, Betfair Sportsbook, Coral, Ladbrokes, Betway | Any |
 | Picks per day | 5 at most | No limit |
 | Bankroll | £100, pausing at £70 | £1,000, pausing at £700 |
 
@@ -101,7 +101,7 @@ A run costs 1 credit per competition scanned, plus 2 per competition with a fini
 
 ### Bookmakers
 
-Picks come from Paddy Power, Betfair Sportsbook, Coral and Ladbrokes. Paddy Power and Betfair Sportsbook are one company (Flutter), as are Coral and Ladbrokes (Entain), so a restriction at one can follow you to its sister brand. Betfred isn't covered by The Odds API, so it can't be scanned. If a bookmaker never appears in the odds data, the bot tells you once.
+Picks come from Paddy Power, Betfair Sportsbook, Coral, Ladbrokes and Betway. Up to 10 bookmakers (including Pinnacle and the Betfair Exchange) cost the same single credit per scan, so there's room for 3 more at no cost. Paddy Power and Betfair Sportsbook are one company (Flutter), as are Coral and Ladbrokes (Entain), so a restriction at one can follow you to its sister brand. Betfred isn't covered by The Odds API, so it can't be scanned. If a bookmaker never appears in the odds data, the bot tells you once.
 
 ### Football
 

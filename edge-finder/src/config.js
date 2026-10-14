@@ -39,7 +39,7 @@ export const PROFILES = {
   safe: {
     sports: 'tennis_*,mma_mixed_martial_arts,soccer_epl',
     markets: 'h2h',
-    books: 'paddypower,betfair_sb_uk,coral,ladbrokes_uk',
+    books: 'paddypower,betfair_sb_uk,coral,ladbrokes_uk,betway',
     bankroll: 100,
     minProb: 0.75,
     minOdds: 1.1,
