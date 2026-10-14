@@ -60,6 +60,11 @@ export function report(bets) {
   const staked = settled.reduce((a, b) => a + b.stake, 0);
   const pnl = settled.reduce((a, b) => a + b.pnl, 0);
   const expected = settled.reduce((a, b) => a + b.stake * b.ev, 0);
+  // Pushes and voids aren't wins or losses; half results count as half.
+  const credit = { won: 1, 'half-won': 0.5, lost: 0, 'half-lost': 0 };
+  const decided = settled.filter((b) => b.status in credit);
+  const wins = decided.reduce((a, b) => a + credit[b.status], 0);
+  const [winRateLow, winRateHigh] = wilson(wins, decided.length);
   const withClose = bets.filter((b) => b.close_prob != null);
   const clv = withClose.map((b) => b.odds * b.close_prob - 1);
   return {
@@ -74,5 +79,21 @@ export function report(bets) {
     clvCount: clv.length,
     avgClv: clv.length ? clv.reduce((a, b) => a + b, 0) / clv.length : 0,
     beatClose: clv.length ? clv.filter((x) => x > 0).length / clv.length : 0,
+    decided: decided.length,
+    wins,
+    winRate: decided.length ? wins / decided.length : 0,
+    expectedWinRate: decided.length ? decided.reduce((a, b) => a + b.fair_prob, 0) / decided.length : 0,
+    breakEvenWinRate: decided.length ? decided.reduce((a, b) => a + 1 / b.odds, 0) / decided.length : 0,
+    winRateLow,
+    winRateHigh,
   };
+}
+
+/** 95% Wilson score interval for a win rate. */
+export function wilson(wins, n, z = 1.96) {
+  if (!n) return [0, 1];
+  const p = wins / n;
+  const centre = (p + (z * z) / (2 * n)) / (1 + (z * z) / n);
+  const half = (z / (1 + (z * z) / n)) * Math.sqrt((p * (1 - p)) / n + (z * z) / (4 * n * n));
+  return [Math.max(0, centre - half), Math.min(1, centre + half)];
 }

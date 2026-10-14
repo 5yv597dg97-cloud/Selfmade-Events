@@ -524,5 +524,297 @@
     ]
    }
   ]
+ },
+ {
+  "id": "evt_sinner",
+  "sport_key": "tennis_atp_paris_masters",
+  "sport_title": "ATP Paris Masters",
+  "commence_time": "2026-10-15T13:00:00Z",
+  "home_team": "Jannik Sinner",
+  "away_team": "Hugo Gaston",
+  "bookmakers": [
+   {
+    "key": "pinnacle",
+    "title": "Pinnacle",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Jannik Sinner",
+        "price": 1.12
+       },
+       {
+        "name": "Hugo Gaston",
+        "price": 6.8
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "betfair_ex_uk",
+    "title": "Betfair",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Jannik Sinner",
+        "price": 1.13
+       },
+       {
+        "name": "Hugo Gaston",
+        "price": 7.4
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "paddypower",
+    "title": "Paddy Power",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Jannik Sinner",
+        "price": 1.18
+       },
+       {
+        "name": "Hugo Gaston",
+        "price": 4.8
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "betfair_sb_uk",
+    "title": "Betfair Sportsbook",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Jannik Sinner",
+        "price": 1.16
+       },
+       {
+        "name": "Hugo Gaston",
+        "price": 5.0
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "evt_swiatek",
+  "sport_key": "tennis_wta_finals",
+  "sport_title": "WTA Finals",
+  "commence_time": "2026-10-16T17:00:00Z",
+  "home_team": "Iga Swiatek",
+  "away_team": "Elina Svitolina",
+  "bookmakers": [
+   {
+    "key": "pinnacle",
+    "title": "Pinnacle",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Iga Swiatek",
+        "price": 1.36
+       },
+       {
+        "name": "Elina Svitolina",
+        "price": 3.3
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "betfair_sb_uk",
+    "title": "Betfair Sportsbook",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Iga Swiatek",
+        "price": 1.42
+       },
+       {
+        "name": "Elina Svitolina",
+        "price": 2.8
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "evt_ufc1",
+  "sport_key": "mma_mixed_martial_arts",
+  "sport_title": "MMA",
+  "commence_time": "2026-10-18T03:00:00Z",
+  "home_team": "Islam Makhachev",
+  "away_team": "Renato Moicano",
+  "bookmakers": [
+   {
+    "key": "pinnacle",
+    "title": "Pinnacle",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Islam Makhachev",
+        "price": 1.25
+       },
+       {
+        "name": "Renato Moicano",
+        "price": 4.2
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "betfair_ex_uk",
+    "title": "Betfair",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Islam Makhachev",
+        "price": 1.26
+       },
+       {
+        "name": "Renato Moicano",
+        "price": 4.6
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "betfair_sb_uk",
+    "title": "Betfair Sportsbook",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Islam Makhachev",
+        "price": 1.31
+       },
+       {
+        "name": "Renato Moicano",
+        "price": 3.5
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "paddypower",
+    "title": "Paddy Power",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Islam Makhachev",
+        "price": 1.28
+       },
+       {
+        "name": "Renato Moicano",
+        "price": 3.6
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "evt_ufc2",
+  "sport_key": "mma_mixed_martial_arts",
+  "sport_title": "MMA",
+  "commence_time": "2026-10-18T04:30:00Z",
+  "home_team": "Tom Aspinall",
+  "away_team": "Ciryl Gane",
+  "bookmakers": [
+   {
+    "key": "pinnacle",
+    "title": "Pinnacle",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Tom Aspinall",
+        "price": 1.6
+       },
+       {
+        "name": "Ciryl Gane",
+        "price": 2.45
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "paddypower",
+    "title": "Paddy Power",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Tom Aspinall",
+        "price": 1.75
+       },
+       {
+        "name": "Ciryl Gane",
+        "price": 2.1
+       }
+      ]
+     }
+    ]
+   }
+  ]
  }
 ]

@@ -23,7 +23,9 @@ Usage: npm run edge -- <command> [options]
   sports               List sport keys your API key can query
 
 Scan options (or the env vars in README.md):
-  --sports a,b  --books a,b  --bankroll 1000  --min-edge 0.02  --min-prob 0.4
+  --profile safe|value   safe (default): 75%+ win chance, tennis & MMA, Paddy Power/Betfair Sportsbook
+                         value: any odds from 1.30 to 4.00 with an edge
+  --sports a,b (tennis_* = all tennis)  --books a,b  --bankroll 1000  --min-edge 0.02  --min-prob 0.4
   --min-odds 1.3  --max-odds 4  --kelly-fraction 0.25  --max-stake-pct 0.02
   --devig-method power|shin|multiplicative  --consensus  --all-per-event
   --fixture <file.json>  read odds from a file instead of the API (no key needed)
@@ -63,7 +65,7 @@ async function loadEvents(cfg, flags, sports = cfg.sports) {
   if (!cfg.apiKey) throw new Error('Set ODDS_API_KEY (free key at https://the-odds-api.com) or use --fixture');
   const events = [];
   let remaining;
-  for (const sport of sports) {
+  for (const sport of await expandSports(cfg, sports)) {
     try {
       const res = await fetchOdds({ apiKey: cfg.apiKey, sport, regions: cfg.regions, markets: cfg.markets });
       events.push(...res.data);
@@ -76,17 +78,28 @@ async function loadEvents(cfg, flags, sports = cfg.sports) {
   return events;
 }
 
+/** Turns "tennis_*" into every tennis competition currently open (the sports list costs no credits). */
+async function expandSports(cfg, sports) {
+  if (!sports.some((s) => s.endsWith('*'))) return sports;
+  const { data } = await fetchSports({ apiKey: cfg.apiKey });
+  const active = data.filter((s) => s.active && !s.has_outrights).map((s) => s.key);
+  const out = sports.flatMap((s) => (s.endsWith('*') ? active.filter((k) => k.startsWith(s.slice(0, -1))) : [s]));
+  console.error(`  Scanning ${out.length} competitions: ${out.join(', ')}`);
+  return [...new Set(out)];
+}
+
 function printPicks(picks, cfg) {
   if (!picks.length) {
     console.log('No value bets right now. That is the normal state of an efficient market; check again later.');
     return;
   }
-  console.log(`Value bets  (bankroll ${gbp.format(cfg.bankroll)}, ${cfg.kellyFraction}x Kelly, cap ${pct(cfg.maxStakePct)} per bet)\n`);
+  console.log(`Value bets, "${cfg.profile}" profile  (win chance ≥ ${pct(cfg.minProb, 0)}, bankroll ${gbp.format(cfg.bankroll)}, ${cfg.kellyFraction}x Kelly, cap ${pct(cfg.maxStakePct)} per bet)\n`);
   picks.forEach((p, i) => {
     const flag = p.suspicious ? '  ⚠ edge too large: likely a stale or mismatched line, check before betting' : '';
     console.log(`#${i + 1} [${p.id}] ${p.home} v ${p.away}  · ${p.league} · ${when(p.commenceTime)}${flag}`);
     console.log(`    ${selection(p)} @ ${p.odds} with ${p.bookTitle}`);
-    console.log(`    fair odds ${p.fairOdds.toFixed(2)} (win chance ${pct(p.fairProb)}, from ${p.fairSource})  ·  edge +${pct(p.ev)}  ·  stake ${gbp.format(p.stake)}`);
+    console.log(`    wins ${pct(p.fairProb)} of the time (fair odds ${p.fairOdds.toFixed(2)}, from ${p.fairSource}); needs ${pct(1 / p.odds)} to break even`);
+    console.log(`    edge +${pct(p.ev)}  ·  stake ${gbp.format(p.stake)} to win ${gbp.format(p.stake * (p.odds - 1))}`);
     if (p.alsoAt.length) console.log(`    also value at: ${p.alsoAt.join(', ')}`);
     console.log('');
   });
@@ -168,9 +181,15 @@ async function main() {
       const open = store.open().filter((b) => new Date(b.commence_time) < now);
       if (!open.length) return console.log('No open bets that have started.');
       for (const sport of new Set(open.map((b) => b.sport))) {
-        const games = flags.scores
-          ? JSON.parse(readFileSync(flags.scores, 'utf8'))
-          : (await fetchScores({ apiKey: cfg.apiKey, sport })).data;
+        let games;
+        try {
+          games = flags.scores
+            ? JSON.parse(readFileSync(flags.scores, 'utf8'))
+            : (await fetchScores({ apiKey: cfg.apiKey, sport })).data;
+        } catch (err) {
+          console.log(`No scores for ${sport} (${err.message}); settle these by hand with "settle <bet> <result>"`);
+          continue;
+        }
         for (const b of open.filter((x) => x.sport === sport)) {
           const g = games.find((x) => x.id === b.event_id);
           if (!g?.completed || !g.scores) continue;
@@ -182,7 +201,7 @@ async function main() {
           console.log(`Bet ${b.id}: ${b.home} ${h}-${a} ${b.away} → ${result.status} ${gbp.format(result.pnl)}`);
         }
       }
-      console.log('Check results against your bookmaker\'s rules (e.g. extra time, abandoned games) and fix any with "settle <bet> <result>".');
+      console.log('Check results against your bookmaker\'s rules (e.g. tennis retirements, extra time, cancelled fights) and fix any with "settle <bet> <result>".');
       return;
     }
 
@@ -192,6 +211,11 @@ async function main() {
       console.log(`Bets: ${r.bets} (${r.open} open, ${r.settled} settled)`);
       console.log(`Staked ${gbp.format(r.staked)} · profit ${gbp.format(r.pnl)} · ROI ${pct(r.roi)}`);
       console.log(`Expected profit on settled bets: ${gbp.format(r.expectedPnl)} (average edge at bet time ${pct(r.avgEv)})`);
+      if (r.decided) {
+        console.log(`\nWin rate ${pct(r.winRate)} (${r.wins} of ${r.decided}) · expected ${pct(r.expectedWinRate)} from fair odds · break-even ${pct(r.breakEvenWinRate)}`);
+        console.log(`With ${r.decided} bets the true win rate is likely between ${pct(r.winRateLow, 0)} and ${pct(r.winRateHigh, 0)} (95% range).`);
+        if (r.decided < 300) console.log(`It takes about 300 bets to pin a 75% win rate down to ±5%.`);
+      }
       if (r.clvCount) {
         console.log(`Closing line value: ${pct(r.avgClv)} average over ${r.clvCount} bets, beat the close ${pct(r.beatClose, 0)} of the time`);
       }

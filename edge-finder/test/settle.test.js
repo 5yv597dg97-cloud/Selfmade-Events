@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { grade, manualResult } from '../src/settle.js';
-import { report } from '../src/store.js';
+import { report, wilson } from '../src/store.js';
 
 const bet = (o) => ({ home: 'H', away: 'A', odds: 2, stake: 10, ...o });
 
@@ -42,4 +42,25 @@ test('report computes ROI and closing line value', () => {
   assert.ok(Math.abs(r.avgClv - 0) < 1e-12);
   assert.equal(r.beatClose, 0.5);
   assert.ok(Math.abs(r.expectedPnl - 0.8) < 1e-12);
+});
+
+test('report tracks win rate against the expected and break-even rates', () => {
+  const bets = [
+    ...Array(8).fill({ status: 'won', stake: 5, pnl: 1.5, ev: 0.03, odds: 1.3, fair_prob: 0.8 }),
+    ...Array(2).fill({ status: 'lost', stake: 5, pnl: -5, ev: 0.03, odds: 1.3, fair_prob: 0.8 }),
+    { status: 'void', stake: 5, pnl: 0, ev: 0.03, odds: 1.3, fair_prob: 0.8 },
+  ];
+  const r = report(bets);
+  assert.equal(r.decided, 10);
+  assert.equal(r.winRate, 0.8);
+  assert.ok(Math.abs(r.expectedWinRate - 0.8) < 1e-12);
+  assert.ok(Math.abs(r.breakEvenWinRate - 1 / 1.3) < 1e-12);
+  assert.ok(r.winRateLow < 0.8 && r.winRateHigh > 0.8);
+});
+
+test('the win-rate range narrows with more bets', () => {
+  const [lo10, hi10] = wilson(8, 10);
+  const [lo300, hi300] = wilson(240, 300);
+  assert.ok(hi300 - lo300 < hi10 - lo10);
+  assert.ok(hi300 - lo300 < 0.1);
 });
