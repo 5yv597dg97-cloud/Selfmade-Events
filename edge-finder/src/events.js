@@ -1,6 +1,6 @@
 // Getting odds and scores, from The Odds API or from local files for testing.
 import { readFileSync } from 'node:fs';
-import { fetchOdds, fetchScores, fetchSports } from './odds-api.js';
+import { fetchEvents, fetchOdds, fetchScores, fetchSports } from './odds-api.js';
 import { grade } from './settle.js';
 
 // The sharp books we need in every request when naming bookmakers explicitly.
@@ -14,16 +14,30 @@ export async function expandSports(cfg, sports, fetchImpl = fetch) {
   return [...new Set(sports.flatMap((s) => (s.endsWith('*') ? active.filter((k) => k.startsWith(s.slice(0, -1))) : [s])))];
 }
 
-/** Returns { events, remaining, errors }; `remaining` is the Odds API credits left, if known. */
-export async function loadEvents(cfg, { sports = cfg.sports, fixture, fetchImpl = fetch } = {}) {
-  if (fixture) return { events: JSON.parse(readFileSync(fixture, 'utf8')), remaining: null, errors: [] };
+/** Whether a competition has a match starting within the look-ahead window (a free check). */
+async function hasUpcoming(cfg, sport, now, fetchImpl) {
+  const { data } = await fetchEvents({ apiKey: cfg.apiKey, sport, fetchImpl });
+  const from = now + cfg.minLeadMinutes * 60e3;
+  const to = now + cfg.lookaheadHours * 3600e3;
+  return data.some((e) => { const t = Date.parse(e.commence_time); return t > from && t < to; });
+}
+
+/**
+ * Returns { events, remaining, errors, skipped }; `remaining` is the Odds API
+ * credits left, if known. Competitions with nothing starting soon are skipped
+ * without spending credits.
+ */
+export async function loadEvents(cfg, { sports = cfg.sports, fixture, now = Date.now(), fetchImpl = fetch } = {}) {
+  if (fixture) return { events: JSON.parse(readFileSync(fixture, 'utf8')), remaining: null, errors: [], skipped: [] };
   if (!cfg.apiKey) throw new Error('Set ODDS_API_KEY (free key at https://the-odds-api.com) or use --fixture');
   const bookmakers = cfg.books.length ? [...SHARP_REQUEST, ...cfg.books] : undefined;
   const events = [];
   const errors = [];
+  const skipped = [];
   let remaining = null;
   for (const sport of await expandSports(cfg, sports, fetchImpl)) {
     try {
+      if (!(await hasUpcoming(cfg, sport, now, fetchImpl))) { skipped.push(sport); continue; }
       const res = await fetchOdds({ apiKey: cfg.apiKey, sport, regions: cfg.regions, bookmakers, markets: cfg.markets, fetchImpl });
       events.push(...res.data);
       remaining = res.remaining;
@@ -31,7 +45,7 @@ export async function loadEvents(cfg, { sports = cfg.sports, fixture, fetchImpl 
       errors.push(`${sport}: ${err.message}`);
     }
   }
-  return { events, remaining: remaining == null ? null : Number(remaining), errors };
+  return { events, remaining: remaining == null ? null : Number(remaining), errors, skipped };
 }
 
 /**

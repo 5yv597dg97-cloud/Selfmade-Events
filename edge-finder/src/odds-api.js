@@ -24,6 +24,11 @@ export function fetchOdds({ apiKey, sport, regions, bookmakers, markets, fetchIm
   }, fetchImpl);
 }
 
+/** Upcoming matches without odds. Free: doesn't use any quota. */
+export function fetchEvents({ apiKey, sport, fetchImpl = fetch }) {
+  return get(`/sports/${sport}/events`, { apiKey, dateFormat: 'iso' }, fetchImpl);
+}
+
 export function fetchScores({ apiKey, sport, daysFrom = 3, fetchImpl = fetch }) {
   return get(`/sports/${sport}/scores`, { apiKey, daysFrom: String(daysFrom), dateFormat: 'iso' }, fetchImpl);
 }

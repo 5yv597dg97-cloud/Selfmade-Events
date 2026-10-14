@@ -29,7 +29,7 @@ Usage: npm run edge -- <command> [options]
   telegram-setup       Show your Telegram chat ID (message your bot first)
 
 Scan options (or the env vars in README.md):
-  --profile safe|value   safe (default): 75%+ win chance, tennis & MMA, Paddy Power/Betfair Sportsbook
+  --profile safe|value   safe (default): 75%+ win chance, tennis, MMA & EPL, Paddy Power/Betfair Sportsbook
                          value: any odds from 1.30 to 4.00 with an edge
   --sports a,b (tennis_* = all tennis)  --books a,b  --bankroll 1000  --min-edge 0.02  --min-prob 0.4
   --min-odds 1.3  --max-odds 4  --kelly-fraction 0.25  --max-stake-pct 0.02
@@ -54,8 +54,9 @@ function parseArgs(argv) {
   return { positional, flags };
 }
 
-async function loadEvents(cfg, flags, sports = cfg.sports) {
-  const { events, remaining, errors } = await fetchEvents(cfg, { sports, fixture: flags.fixture });
+async function loadEvents(cfg, flags, sports = cfg.sports, now = Date.now()) {
+  const { events, remaining, errors, skipped } = await fetchEvents(cfg, { sports, fixture: flags.fixture, now });
+  if (skipped.length) console.error(`  (Nothing starting soon, skipped for free: ${skipped.join(', ')})`);
   for (const e of errors) console.error(`  ! ${e}`);
   if (remaining != null) console.error(`  (Odds API credits left: ${remaining})`);
   return events;
@@ -111,7 +112,7 @@ async function main() {
   }
 
   if (command === 'scan') {
-    const events = await loadEvents(cfg, flags);
+    const events = await loadEvents(cfg, flags, cfg.sports, now.getTime());
     // Size stakes from the current bankroll, and respect the stop-loss.
     const store = openStore(cfg.db);
     const bankroll = store.bankroll(cfg.bankroll);
@@ -163,7 +164,7 @@ async function main() {
     if (command === 'close') {
       const open = store.open().filter((b) => new Date(b.commence_time) > now);
       if (!open.length) return console.log('No open bets before kick-off.');
-      const events = await loadEvents(cfg, flags, [...new Set(open.map((b) => b.sport))]);
+      const events = await loadEvents(cfg, flags, [...new Set(open.map((b) => b.sport))], now.getTime());
       for (const b of open) {
         const p = currentFairProb(events, b, cfg, now.getTime());
         if (p == null) { console.log(`Bet ${b.id}: no fresh sharp price for this line right now`); continue; }

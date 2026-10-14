@@ -27,7 +27,7 @@ Expect a +2–5% average return on stakes *if* everything goes right, with big s
 | Win chance | 75%+ | 40%+ |
 | Odds | 1.10 – 1.40 | 1.30 – 4.00 |
 | Minimum edge | 1.5% | 2% |
-| Sports | All tennis tournaments, MMA | EPL, Champions League, NBA, NFL, NHL |
+| Sports | All tennis tournaments, MMA, Premier League | EPL, Champions League, NBA, NFL, NHL |
 | Market | Match winner only | Match winner, handicaps, over/unders |
 | Bookmakers | Paddy Power, Betfair Sportsbook | Any |
 | Bankroll | £100, pausing at £70 | £1,000, pausing at £700 |
@@ -46,7 +46,7 @@ The system is working when your actual rate stays near the expected rate *and* a
 
 ## Setup: picks on your phone
 
-Twice a day (about 9am and 5pm UK time), GitHub runs a scan for free and sends each new pick to you on Telegram:
+Twice a day (about 9am and 5pm UK time), GitHub runs a scan of tennis, MMA and the Premier League for free and sends each new pick to you on Telegram:
 
 > 🎾 **Jannik Sinner to win** @ **1.18** with Paddy Power
 > Sinner v Gaston · ATP Paris Masters · Thu 15 Oct, 14:00
@@ -89,7 +89,13 @@ If your bankroll falls to £70 (30% below the start), picks stop and the bot tel
 
 ### API credits
 
-A run costs 1 credit per competition scanned (each running tennis tournament, plus MMA), plus 2 per competition with a finished bet to settle. Twice a day that is usually 300–450 credits a month, inside the free 500. If you run low, the bot warns you below 60 credits.
+A run costs 1 credit per competition scanned, plus 2 per competition with a finished bet to settle. Competitions with no match in the next 48 hours are skipped for free, so the Premier League and MMA mostly cost credits around weekends. Expect roughly 250–450 credits a month, inside the free 500; busy tennis weeks cost the most. The bot warns you below 60 credits.
+
+### Football
+
+Football picks are **match winner only** (home win or away win; the draw counts as a loss), on Premier League sides the sharp market rates at least 75% to win. Expect a few a month, mostly when a top side plays at home against a weak one. They settle automatically from the final score after 90 minutes plus stoppage time.
+
+Player props (goalscorers, shots, cards) aren't included. There's no reliable sharp price to compare them against, bookmakers take their biggest margins on them, few reach 75%, and each one costs credits per match instead of per league.
 
 ## Running it yourself
 
@@ -137,6 +143,7 @@ Environment variables, or the flag in brackets for one run:
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | | For the `run` command |
 | `EDGE_MAX_STALE_MINUTES` | `10` | Ignore prices older than this |
 | `EDGE_MIN_LEAD_MINUTES` | `5` | Ignore events starting sooner than this |
+| `EDGE_LOOKAHEAD_HOURS` | `48` | Only scan competitions with a match starting within this window |
 | `EDGE_DEVIG_METHOD` | `power` | `power`, `shin` or `multiplicative` |
 | `EDGE_CONSENSUS` (`--consensus`) | off | With no sharp price, use the median of 5+ books (much weaker) |
 | `EDGE_ONE_PER_EVENT` (`--all-per-event`) | on | Only the best bet per match, since bets on the same match are correlated |

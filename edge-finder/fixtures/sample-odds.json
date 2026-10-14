@@ -816,5 +816,115 @@
     ]
    }
   ]
+ },
+ {
+  "id": "evt_liv_bur",
+  "sport_key": "soccer_epl",
+  "sport_title": "EPL",
+  "commence_time": "2026-10-17T14:00:00Z",
+  "home_team": "Liverpool",
+  "away_team": "Burnley",
+  "bookmakers": [
+   {
+    "key": "pinnacle",
+    "title": "Pinnacle",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Liverpool",
+        "price": 1.22
+       },
+       {
+        "name": "Draw",
+        "price": 6.8
+       },
+       {
+        "name": "Burnley",
+        "price": 14
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "betfair_ex_uk",
+    "title": "Betfair",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Liverpool",
+        "price": 1.23
+       },
+       {
+        "name": "Draw",
+        "price": 7.2
+       },
+       {
+        "name": "Burnley",
+        "price": 16
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "paddypower",
+    "title": "Paddy Power",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Liverpool",
+        "price": 1.27
+       },
+       {
+        "name": "Draw",
+        "price": 6.0
+       },
+       {
+        "name": "Burnley",
+        "price": 11
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "betfair_sb_uk",
+    "title": "Betfair Sportsbook",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Liverpool",
+        "price": 1.25
+       },
+       {
+        "name": "Draw",
+        "price": 6.0
+       },
+       {
+        "name": "Burnley",
+        "price": 12
+       }
+      ]
+     }
+    ]
+   }
+  ]
  }
 ]

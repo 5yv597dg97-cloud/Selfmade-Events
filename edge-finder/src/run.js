@@ -142,7 +142,7 @@ export async function runOnce({ cfg, store, bot, now = new Date(), fixture, scor
   if (bankroll <= stop) {
     footer.push(`⏸ <b>Paused.</b> Bankroll ${money(bankroll)} has hit your ${money(stop)} stop-loss, so no new picks. Look back over your bets, then send /resume if you want to carry on.`);
   } else {
-    const { events, remaining, errors } = await loadEvents(cfg, { fixture, fetchImpl });
+    const { events, remaining, errors } = await loadEvents(cfg, { fixture, now: now.getTime(), fetchImpl });
     // Keep each open bet's latest sharp price, for closing line value.
     for (const b of store.open().filter((x) => Date.parse(x.commence_time) > now.getTime())) {
       const p = currentFairProb(events, b, cfg, now.getTime());

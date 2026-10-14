@@ -20,6 +20,7 @@ const DEFAULTS = {
   maxOdds: 4,
   maxStaleMinutes: 10,
   minLeadMinutes: 5,
+  lookaheadHours: 48, // only pay to scan competitions with a match starting within this window
   devigMethod: 'power',
   consensus: false,
   minConsensusBooks: 5,
@@ -35,7 +36,7 @@ const DEFAULTS = {
 // short odds and small wins. "value" takes any odds with an edge.
 export const PROFILES = {
   safe: {
-    sports: 'tennis_*,mma_mixed_martial_arts',
+    sports: 'tennis_*,mma_mixed_martial_arts,soccer_epl',
     markets: 'h2h',
     books: 'paddypower,betfair_sb_uk',
     bankroll: 100,
@@ -53,6 +54,7 @@ const ENV = {
   maxStakePct: 'EDGE_MAX_STAKE_PCT', minEdge: 'EDGE_MIN_EDGE', maxEdge: 'EDGE_MAX_EDGE',
   minProb: 'EDGE_MIN_PROB', minOdds: 'EDGE_MIN_ODDS', maxOdds: 'EDGE_MAX_ODDS',
   maxStaleMinutes: 'EDGE_MAX_STALE_MINUTES', minLeadMinutes: 'EDGE_MIN_LEAD_MINUTES',
+  lookaheadHours: 'EDGE_LOOKAHEAD_HOURS',
   devigMethod: 'EDGE_DEVIG_METHOD', consensus: 'EDGE_CONSENSUS',
   minConsensusBooks: 'EDGE_MIN_CONSENSUS_BOOKS', onePerEvent: 'EDGE_ONE_PER_EVENT', db: 'EDGE_DB',
   stopLossPct: 'EDGE_STOP_LOSS_PCT', telegramToken: 'TELEGRAM_BOT_TOKEN', telegramChatId: 'TELEGRAM_CHAT_ID',

@@ -48,6 +48,7 @@ test('the safe profile only takes 75%+ outcomes at my books', () => {
   assert.deepEqual(picks.map((p) => [p.outcome, p.book]), [
     ['Jannik Sinner', 'paddypower'],
     ['Islam Makhachev', 'betfair_sb_uk'],
+    ['Liverpool', 'paddypower'],
   ]);
   for (const p of picks) {
     assert.ok(p.fairProb >= 0.75 && p.odds <= 1.4 && p.ev >= 0.015);

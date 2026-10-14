@@ -34,14 +34,15 @@ test('a full week: picks, taps, commands, settling and the stop-loss', async () 
   const bot = fakeBot();
   const at = (iso) => new Date(iso);
 
-  // Run 1: two picks go out with buttons, sized from £100.
+  // Run 1: three picks go out with buttons, sized from £100.
   let r = await runOnce({ cfg, store, bot, now: at('2026-10-14T12:00:00Z'), fixture: FIXTURE });
-  assert.equal(r.sent, 2);
+  assert.equal(r.sent, 3);
   const picks = bot.sent.filter((m) => m.buttons);
-  assert.equal(picks.length, 2);
+  assert.equal(picks.length, 3);
+  assert.match(picks[2].text, /⚽ <b>Liverpool to win/);
   assert.match(picks[0].text, /Jannik Sinner to win<\/b> @ <b>1\.18/);
   assert.match(picks[0].text, /Stake <b>£2\.00/);
-  const [sinner, makhachev] = picks.map((m) => m.buttons[0][0].callback_data.split(':')[1]);
+  const [sinner, makhachev] = picks.slice(0, 2).map((m) => m.buttons[0][0].callback_data.split(':')[1]);
   assert.match(bot.sent.at(-1).text, /Bankroll <b>£100\.00/);
 
   // Run 2: tap Placed on one, log the other at a different price; a stranger is ignored.
