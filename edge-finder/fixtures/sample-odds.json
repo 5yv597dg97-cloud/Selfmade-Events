@@ -847,6 +847,22 @@
         "price": 14
        }
       ]
+     },
+     {
+      "key": "totals",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Over",
+        "price": 1.8,
+        "point": 2.75
+       },
+       {
+        "name": "Under",
+        "price": 2.08,
+        "point": 2.75
+       }
+      ]
      }
     ]
    },
@@ -870,6 +886,22 @@
        {
         "name": "Burnley",
         "price": 16
+       }
+      ]
+     },
+     {
+      "key": "totals",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Over",
+        "price": 1.82,
+        "point": 2.75
+       },
+       {
+        "name": "Under",
+        "price": 2.12,
+        "point": 2.75
        }
       ]
      }
@@ -1030,6 +1062,22 @@
         "price": 11.0
        }
       ]
+     },
+     {
+      "key": "totals",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Over",
+        "price": 1.95,
+        "point": 3.0
+       },
+       {
+        "name": "Under",
+        "price": 1.93,
+        "point": 3.0
+       }
+      ]
      }
     ]
    },
@@ -1053,6 +1101,22 @@
        {
         "name": "Wolverhampton Wanderers",
         "price": 12.5
+       }
+      ]
+     },
+     {
+      "key": "totals",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Over",
+        "price": 1.97,
+        "point": 3.0
+       },
+       {
+        "name": "Under",
+        "price": 1.96,
+        "point": 3.0
        }
       ]
      }

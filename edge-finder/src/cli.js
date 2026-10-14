@@ -9,6 +9,7 @@ import { loadEvents as fetchEvents, settleFinished } from './events.js';
 import { telegram } from './telegram.js';
 import { runOnce, linkChat, HELP as BOT_HELP } from './run.js';
 import { findDoubles, fractional } from './doubles.js';
+import { findScorelineDoubles } from './scorelines.js';
 import { gbp, pct, when, selection } from './format.js';
 
 const LAST_SCAN = '.last-scan.json';
@@ -124,13 +125,21 @@ async function main() {
     const picks = live.paused ? [] : scan(events, live, now.getTime());
     writeFileSync(LAST_SCAN, JSON.stringify(picks, null, 2));
     const doubles = live.paused || !cfg.doubles || !cfg.books.length ? [] : findDoubles(events, live, now.getTime());
-    if (flags.json) return console.log(JSON.stringify({ picks, doubles }, null, 2));
+    const scorelines = live.paused || !cfg.scorelines ? [] : findScorelineDoubles(events, live, now.getTime());
+    if (flags.json) return console.log(JSON.stringify({ picks, doubles, scorelines }, null, 2));
     printPicks(picks, live);
     if (doubles.length) {
       console.log(`\nFun doubles (${gbp.format(cfg.doubleStake)} each, not part of the win rate)\n`);
       for (const d of doubles) {
         console.log(`[${d.id}] ${d.odds} (${fractional(d.odds)}) with ${d.bookTitle}: wins about 1 in ${Math.round(1 / d.fairProb)}, edge +${pct(d.ev, 0)}`);
         for (const l of d.legs) console.log(`    ${selection(l)} @ ${l.odds}  ·  ${l.home} v ${l.away}  ·  ${when(l.commenceTime)}`);
+      }
+    }
+    if (scorelines.length) {
+      console.log(`\nScoreline doubles (bet only if your bookmaker offers at least these prices)\n`);
+      for (const d of scorelines.slice(0, 5)) {
+        console.log(`[${d.id}] about ${fractional(d.odds)} or better: wins about 1 in ${Math.round(1 / d.fairProb)}`);
+        for (const l of d.legs) console.log(`    ${selection(l)}: chance ${pct(l.fairProb)}, only at ${l.odds} or better  ·  ${when(l.commenceTime)}`);
       }
     }
     return;

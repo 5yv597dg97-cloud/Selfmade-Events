@@ -10,6 +10,7 @@ export const when = (iso) => new Date(iso).toLocaleString('en-GB', {
 export const ukDate = (d) => new Date(d).toLocaleDateString('en-GB', { timeZone: 'Europe/London' });
 
 export function selection(p) {
+  if (p.market === 'correct_score') return `${p.home} ${p.outcome} ${p.away}`;
   if (p.market === 'h2h') return p.outcome === 'Draw' ? 'Draw' : `${p.outcome} to win`;
   const pt = p.point > 0 && p.market === 'spreads' ? `+${p.point}` : p.point;
   return `${p.outcome} ${pt}`;

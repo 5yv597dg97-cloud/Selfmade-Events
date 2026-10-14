@@ -124,6 +124,20 @@ As well as the singles, the bot sends up to 5 **fun doubles** a week: two select
 
 They use the odds already downloaded for the singles, so they cost no extra API credits.
 
+### Scoreline doubles
+
+The bot also suggests **correct-score doubles** near 99/1, for example *Man City 1-0 Wolves + Arsenal 1-0 Everton*. They share the 5-a-week doubles allowance and £0.20 stake; value doubles go first, and scoreline doubles fill any room left.
+
+> 🎲⚽ **Scoreline double**, about 98/1 or better
+> 1. **Manchester City 1-0 Wolverhampton Wanderers**: chance 9.8% (fair odds 10.20) · **only at 10.68 or better**
+> 2. **Arsenal 1-0 Everton**: chance 11.4% (fair odds 8.80) · **only at 9.25 or better**
+
+**How the fair odds are worked out:** from the sharp market's match result and total goals prices, the bot fits each team's expected goals, then uses a standard football model (Poisson, with the Dixon-Coles adjustment that makes 0-0 and 1-1 a little likelier) to get the chance of every scoreline. It considers each match's 4 likeliest scorelines.
+
+**You have to check the prices yourself.** The odds data doesn't include bookmakers' correct-score prices, so each leg shows the lowest price worth taking (5% above fair). Only bet if your bookmaker offers at least that on **both** scorelines. Bookmakers take big margins on correct scores, so most of the time they won't: skip those. If you place one at a better combined price, log it with `/placed <pick> <combined odds>`.
+
+They settle automatically on the exact final score. Turning them off: `EDGE_SCORELINES=false`. Fetching total goals costs 1 extra credit per football league scan, which the credit budget accounts for.
+
 ### Bookmakers
 
 Picks come from Paddy Power, Betfair Sportsbook, Coral, Ladbrokes and Betway. Up to 10 bookmakers (including Pinnacle and the Betfair Exchange) cost the same single credit per scan, so there's room for 3 more at no cost. Paddy Power and Betfair Sportsbook are one company (Flutter), as are Coral and Ladbrokes (Entain), so a restriction at one can follow you to its sister brand. Betfred isn't covered by The Odds API, so it can't be scanned. If a bookmaker never appears in the odds data, the bot tells you once.

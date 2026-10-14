@@ -61,7 +61,8 @@ export async function loadEvents(cfg, { sports = cfg.sports, fixture, now = Date
     try {
       if (!(await hasUpcoming(cfg, sport, now, fetchImpl))) { skipped.push(sport); continue; }
       if (spent >= budget) { overBudget.push(sport); continue; }
-      const res = await fetchOdds({ apiKey: cfg.apiKey, sport, regions: cfg.regions, bookmakers, markets: cfg.markets, fetchImpl });
+      const markets = cfg.scorelines && sport.startsWith('soccer_') ? cfg.footballMarkets : cfg.markets;
+      const res = await fetchOdds({ apiKey: cfg.apiKey, sport, regions: cfg.regions, bookmakers, markets, fetchImpl });
       events.push(...res.data);
       spent += res.last ?? 1;
       remaining = res.remaining ?? remaining;
@@ -123,7 +124,9 @@ export async function settleFinished(store, cfg, { now = new Date(), scoresFile,
     for (const leg of d.legs.filter((l) => !l.result)) {
       const s = finalScore(leg.sport, leg.eventId, leg.home, leg.away);
       if (!s) continue;
-      leg.result = grade({ market: 'h2h', outcome: leg.outcome, home: leg.home, odds: leg.odds, stake: 1 }, ...s).status;
+      leg.result = leg.market === 'correct_score'
+        ? (`${s[0]}-${s[1]}` === leg.outcome ? 'won' : 'lost')
+        : grade({ market: 'h2h', outcome: leg.outcome, home: leg.home, odds: leg.odds, stake: 1 }, ...s).status;
       leg.score = `${s[0]}–${s[1]}`;
       changed = true;
     }

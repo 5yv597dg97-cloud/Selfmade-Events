@@ -35,6 +35,11 @@ const DEFAULTS = {
   legMinEdge: 0.02,
   legMinOdds: 1.5,
   legMaxOdds: 40,
+  scorelines: false,
+  footballMarkets: 'h2h,totals', // totals feed the scoreline model; costs 1 extra credit per league scan
+  scorelineLegEdge: 0.05, // a scoreline is only worth backing at least this far above its fair price
+  scorelineTopN: 4, // likeliest scorelines per match to consider
+  scorelineTarget: 100, // aim for doubles near 99/1
   creditBudget: true, // spread the month's API credits evenly over the remaining runs
   runsPerDay: 2,
   stopLossPct: 0.3, // pause once the bankroll has fallen this far from its starting point
@@ -61,6 +66,7 @@ export const PROFILES = {
     minEdge: 0.015,
     maxPicksPerDay: 5,
     doubles: true,
+    scorelines: true,
   },
   value: {},
 };
@@ -75,6 +81,8 @@ const ENV = {
   doubles: 'EDGE_DOUBLES', doubleStake: 'EDGE_DOUBLE_STAKE', doublesPerWeek: 'EDGE_DOUBLES_PER_WEEK',
   doubleMinOdds: 'EDGE_DOUBLE_MIN_ODDS', doubleMaxOdds: 'EDGE_DOUBLE_MAX_ODDS', doubleMinEdge: 'EDGE_DOUBLE_MIN_EDGE',
   legMinEdge: 'EDGE_LEG_MIN_EDGE', legMinOdds: 'EDGE_LEG_MIN_ODDS', legMaxOdds: 'EDGE_LEG_MAX_ODDS',
+  scorelines: 'EDGE_SCORELINES', footballMarkets: 'EDGE_FOOTBALL_MARKETS', scorelineLegEdge: 'EDGE_SCORELINE_LEG_EDGE',
+  scorelineTopN: 'EDGE_SCORELINE_TOP_N', scorelineTarget: 'EDGE_SCORELINE_TARGET',
   creditBudget: 'EDGE_CREDIT_BUDGET', runsPerDay: 'EDGE_RUNS_PER_DAY',
   devigMethod: 'EDGE_DEVIG_METHOD', consensus: 'EDGE_CONSENSUS',
   minConsensusBooks: 'EDGE_MIN_CONSENSUS_BOOKS', onePerEvent: 'EDGE_ONE_PER_EVENT', db: 'EDGE_DB',

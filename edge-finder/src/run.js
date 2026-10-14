@@ -4,6 +4,7 @@ import { scan, currentFairProb } from './scanner.js';
 import { loadEvents, settleFinished } from './events.js';
 import { report, doublesReport } from './store.js';
 import { findDoubles, fractional } from './doubles.js';
+import { findScorelineDoubles } from './scorelines.js';
 import { manualResult } from './settle.js';
 import { esc } from './telegram.js';
 import { money, pct, when, selection, ukDate } from './format.js';
@@ -42,6 +43,16 @@ export function doubleMessage(d) {
     `Stake <b>${money(d.stake)}</b> to win ${money(d.stake * (d.odds - 1))}. Still worth it at ${d.minPrice} or better combined.`,
     `<i>A long shot: expect to lose most of these. Not counted in your win rate.</i>`,
     `Pick <code>${d.id}</code>`,
+  ].join('\n');
+}
+
+export function scorelineMessage(d) {
+  return [
+    `🎲⚽ <b>Scoreline double</b>, about ${fractional(d.odds)} or better`,
+    ...d.legs.map((l, i) => `${i + 1}. <b>${esc(selection(l))}</b> · ${esc(l.league)} · ${when(l.commenceTime)}\n    chance ${pct(l.fairProb)} (fair odds ${(1 / l.fairProb).toFixed(2)}) · <b>only at ${l.odds} or better</b>`),
+    `Wins about 1 in ${Math.round(1 / d.fairProb)}. Correct-score prices aren't in the odds data, so check both at any of your bookmakers: <b>bet only if both prices are at least these</b>. Most of the time they won't be.`,
+    `Stake <b>${money(d.stake)}</b>. Placed logs it at ${d.odds}; send <code>/placed ${d.id} &lt;combined odds&gt;</code> if you got more.`,
+    `<i>Not counted in your win rate.</i> Pick <code>${d.id}</code>`,
   ].join('\n');
 }
 
@@ -231,9 +242,13 @@ export async function runOnce({ cfg, store, bot, now = new Date(), fixture, scor
     if (cfg.doubles && cfg.books.length) {
       const weekAgo = new Date(now.getTime() - 7 * 864e5);
       const room = Math.max(0, cfg.doublesPerWeek - store.doublesSentSince(weekAgo));
-      const doubles = findDoubles(events, cfg, now.getTime()).filter((d) => !store.pick(d.id)).slice(0, room);
+      // Value doubles first (their prices are checked); scoreline doubles fill any room left.
+      const doubles = [
+        ...findDoubles(events, cfg, now.getTime()),
+        ...(cfg.scorelines ? findScorelineDoubles(events, cfg, now.getTime()) : []),
+      ].filter((d) => !store.pick(d.id)).slice(0, room);
       for (const d of doubles) {
-        await bot.send(doubleMessage(d), { buttons: [[{ text: '✅ Placed', callback_data: `place:${d.id}` }, { text: 'Skip', callback_data: `skip:${d.id}` }]] });
+        await bot.send(d.type === 'scoreline' ? scorelineMessage(d) : doubleMessage(d), { buttons: [[{ text: '✅ Placed', callback_data: `place:${d.id}` }, { text: 'Skip', callback_data: `skip:${d.id}` }]] });
         store.recordPick(d, now);
         doublesSent++;
       }

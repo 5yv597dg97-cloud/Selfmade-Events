@@ -37,7 +37,7 @@ test('a full week: picks, taps, commands, settling and the stop-loss', async () 
   // Run 1: three picks go out with buttons, sized from £100.
   let r = await runOnce({ cfg, store, bot, now: at('2026-10-14T12:00:00Z'), fixture: FIXTURE });
   assert.equal(r.sent, 3);
-  const picks = bot.sent.filter((m) => m.buttons && !/Fun double/.test(m.text));
+  const picks = bot.sent.filter((m) => m.buttons && !/double/.test(m.text));
   assert.equal(picks.length, 3);
   assert.match(picks[2].text, /⚽ <b>Liverpool to win/);
   assert.match(picks[0].text, /Jannik Sinner to win<\/b> @ <b>1\.18/);
@@ -144,8 +144,9 @@ test('fun doubles: found, sent, placed, settled, and kept out of the win rate', 
   const store = openStore(':memory:');
   const bot = fakeBot();
   let r = await runOnce({ cfg, store, bot, now: new Date('2026-10-14T12:00:00Z'), fixture: FIXTURE });
-  assert.equal(r.doublesSent, 1);
+  assert.equal(r.doublesSent, 2, 'one value double, then one scoreline double');
   const msg = bot.sent.find((m) => /Fun double/.test(m.text));
+  assert.match(bot.sent.find((m) => /Scoreline double/.test(m.text)).text, /Manchester City 1-0 Wolverhampton Wanderers.*only at 10\.68 or better/s);
   assert.match(msg.text, /@ <b>66\.3<\/b> \(65\/1\) with Paddy Power/);
   assert.match(msg.text, /Arthur Fils to win @ 5\.1/);
   assert.match(msg.text, /Wolverhampton Wanderers to win @ 13/);
@@ -197,4 +198,28 @@ test('at most 5 doubles a week, and /result settles one by hand', async () => {
   assert.ok(b2.sent.some((m) => /Double D1: lost -£0\.20/.test(m.text)));
   assert.equal(s2.bankroll(100), 99.8);
   s2.close();
+});
+
+test('a scoreline double settles on the exact score', async () => {
+  const cfg = loadConfig({}, { 'max-picks-per-day': 0 });
+  const store = openStore(':memory:');
+  const bot = fakeBot();
+  await runOnce({ cfg, store, bot, now: new Date('2026-10-14T12:00:00Z'), fixture: FIXTURE });
+  const id = bot.sent.find((m) => /Scoreline double/.test(m.text)).buttons[0][0].callback_data.split(':')[1];
+  bot.queue = [say(`/placed ${id} 120`)];
+  await runOnce({ cfg, store, bot, now: new Date('2026-10-14T12:05:00Z'), fixture: FIXTURE });
+  const [d] = store.openDoubles();
+  assert.equal(d.odds, 120);
+
+  const dir = mkdtempSync(join(tmpdir(), 'edge-'));
+  const scores = join(dir, 'scores.json');
+  writeFileSync(scores, JSON.stringify([
+    { id: 'evt_mci_wol', completed: true, scores: [{ name: 'Manchester City', score: '1' }, { name: 'Wolverhampton Wanderers', score: '0' }] },
+    { id: 'evt_ars_eve', completed: true, scores: [{ name: 'Arsenal', score: '2' }, { name: 'Everton', score: '0' }] },
+  ]));
+  bot.sent = [];
+  await runOnce({ cfg, store, bot, now: new Date('2026-10-18T20:00:00Z'), fixture: FIXTURE, scoresFile: scores });
+  assert.equal(store.getDouble(d.id).status, 'lost', 'Arsenal won 2-0, not 1-0');
+  assert.deepEqual(store.getDouble(d.id).legs.map((l) => l.result), ['won', 'lost']);
+  store.close();
 });

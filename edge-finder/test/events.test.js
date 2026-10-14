@@ -40,7 +40,8 @@ test('expands wildcards, drops out-of-season sports, skips idle ones, and names 
   for (const u of api.odds()) {
     assert.equal(u.searchParams.get('bookmakers'), 'pinnacle,betfair_ex_uk,paddypower,betfair_sb_uk,coral,ladbrokes_uk,betway');
     assert.equal(u.searchParams.get('regions'), null);
-    assert.equal(u.searchParams.get('markets'), 'h2h');
+    // Football also fetches total goals, for the scoreline model.
+    assert.equal(u.searchParams.get('markets'), u.pathname.includes('/soccer_') ? 'h2h,totals' : 'h2h');
   }
   assert.equal(r.remaining, 475);
   assert.equal(r.events.length, 5);
