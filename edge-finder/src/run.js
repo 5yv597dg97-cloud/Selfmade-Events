@@ -163,11 +163,13 @@ export async function runOnce({ cfg, store, bot, now = new Date(), fixture, scor
   const stop = store.stopLevel(cfg.bankroll, cfg.stopLossPct);
   const footer = [];
   let sent = 0;
+  const diag = { events: 0, skipped: [], errors: [], remaining: null, found: 0 };
 
   if (bankroll <= stop) {
     footer.push(`⏸ <b>Paused.</b> Bankroll ${money(bankroll)} has hit your ${money(stop)} stop-loss, so no new picks. Look back over your bets, then send /resume if you want to carry on.`);
   } else {
-    const { events, remaining, errors } = await loadEvents(cfg, { fixture, now: now.getTime(), fetchImpl });
+    const { events, remaining, errors, skipped } = await loadEvents(cfg, { fixture, now: now.getTime(), fetchImpl });
+    Object.assign(diag, { events: events.length, skipped, errors, remaining });
     // Keep each open bet's latest sharp price, for closing line value.
     for (const b of store.open().filter((x) => Date.parse(x.commence_time) > now.getTime())) {
       const p = currentFairProb(events, b, cfg, now.getTime());
@@ -178,6 +180,7 @@ export async function runOnce({ cfg, store, bot, now = new Date(), fixture, scor
     // Best picks first; anything over the daily limit can still go out on a later day if it's still value.
     const room = cfg.maxPicksPerDay > 0 ? Math.max(0, cfg.maxPicksPerDay - store.picksSentOn(now, ukDate)) : Infinity;
     const picks = found.slice(0, room);
+    diag.found = found.length;
     for (const p of picks) {
       await bot.send(pickMessage(p), { buttons: [[{ text: '✅ Placed', callback_data: `place:${p.id}` }, { text: 'Skip', callback_data: `skip:${p.id}` }]] });
       store.recordPick(p, now);
@@ -191,5 +194,5 @@ export async function runOnce({ cfg, store, bot, now = new Date(), fixture, scor
   }
 
   await bot.send([reportText(store, cfg), ...footer].join('\n\n'));
-  return { sent, settled: settled.length, bankroll, paused: bankroll <= stop };
+  return { sent, settled: settled.length, bankroll, paused: bankroll <= stop, ...diag };
 }

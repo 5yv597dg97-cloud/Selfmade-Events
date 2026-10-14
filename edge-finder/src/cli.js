@@ -136,6 +136,9 @@ async function main() {
       if (isNew) await bot.send(`👋 Linked to this chat. Picks will arrive here around 9am and 5pm.\n\n${BOT_HELP}`);
       const r = await runOnce({ cfg, store, bot, now, fixture: flags.fixture, scoresFile: flags.scores });
       console.log(`Sent ${r.sent} picks, settled ${r.settled} bets, bankroll ${gbp.format(r.bankroll)}${r.paused ? ' (paused)' : ''}`);
+      console.log(`Matches with odds: ${r.events} · value picks found: ${r.found} · API credits left: ${r.remaining ?? 'unknown'}`);
+      if (r.skipped.length) console.log(`Skipped (nothing in the next ${cfg.lookaheadHours}h): ${r.skipped.join(', ')}`);
+      for (const e of r.errors) console.log(`Error: ${e}`);
       return;
     }
 
