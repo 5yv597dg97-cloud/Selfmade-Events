@@ -7,7 +7,10 @@ import { manualResult } from './settle.js';
 import { esc } from './telegram.js';
 import { money, pct, when, selection, ukDate } from './format.js';
 
-const ICON = { tennis: '🎾', mma: '🥊', soccer: '⚽', basketball: '🏀', americanfootball: '🏈', icehockey: '🏒' };
+const ICON = {
+  tennis: '🎾', mma: '🥊', soccer: '⚽', basketball: '🏀', americanfootball: '🏈', icehockey: '🏒',
+  rugbyunion: '🏉', rugbyleague: '🏉', cricket: '🏏',
+};
 const icon = (sport) => ICON[sport.split('_')[0]] ?? '🎯';
 
 export const HELP = `<b>Commands</b>
@@ -163,13 +166,13 @@ export async function runOnce({ cfg, store, bot, now = new Date(), fixture, scor
   const stop = store.stopLevel(cfg.bankroll, cfg.stopLossPct);
   const footer = [];
   let sent = 0;
-  const diag = { events: 0, skipped: [], errors: [], remaining: null, found: 0 };
+  const diag = { events: 0, skipped: [], overBudget: [], budget: Infinity, errors: [], remaining: null, found: 0 };
 
   if (bankroll <= stop) {
     footer.push(`⏸ <b>Paused.</b> Bankroll ${money(bankroll)} has hit your ${money(stop)} stop-loss, so no new picks. Look back over your bets, then send /resume if you want to carry on.`);
   } else {
-    const { events, remaining, errors, skipped } = await loadEvents(cfg, { fixture, now: now.getTime(), fetchImpl });
-    Object.assign(diag, { events: events.length, skipped, errors, remaining });
+    const { events, remaining, errors, skipped, overBudget, budget } = await loadEvents(cfg, { fixture, now: now.getTime(), fetchImpl });
+    Object.assign(diag, { events: events.length, skipped, overBudget, budget, errors, remaining });
     // Keep each open bet's latest sharp price, for closing line value.
     for (const b of store.open().filter((x) => Date.parse(x.commence_time) > now.getTime())) {
       const p = currentFairProb(events, b, cfg, now.getTime());

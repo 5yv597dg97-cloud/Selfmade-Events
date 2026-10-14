@@ -10,7 +10,9 @@ async function get(path, params, fetchImpl) {
     const body = await res.text();
     throw new Error(`Odds API ${res.status} on ${path}: ${body.slice(0, 300)}`);
   }
-  return { data: await res.json(), remaining: res.headers.get('x-requests-remaining') };
+  const header = (name) => (res.headers.get(name) == null ? null : Number(res.headers.get(name)));
+  // `last` is what this request cost.
+  return { data: await res.json(), remaining: header('x-requests-remaining'), last: header('x-requests-last') };
 }
 
 /**

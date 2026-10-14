@@ -55,8 +55,9 @@ function parseArgs(argv) {
 }
 
 async function loadEvents(cfg, flags, sports = cfg.sports, now = Date.now()) {
-  const { events, remaining, errors, skipped } = await fetchEvents(cfg, { sports, fixture: flags.fixture, now });
+  const { events, remaining, errors, skipped, overBudget } = await fetchEvents(cfg, { sports, fixture: flags.fixture, now });
   if (skipped.length) console.error(`  (Nothing starting soon, skipped for free: ${skipped.join(', ')})`);
+  if (overBudget.length) console.error(`  (Over this run's credit budget, not scanned: ${overBudget.join(', ')})`);
   for (const e of errors) console.error(`  ! ${e}`);
   if (remaining != null) console.error(`  (Odds API credits left: ${remaining})`);
   return events;
@@ -137,7 +138,9 @@ async function main() {
       const r = await runOnce({ cfg, store, bot, now, fixture: flags.fixture, scoresFile: flags.scores });
       console.log(`Sent ${r.sent} picks, settled ${r.settled} bets, bankroll ${gbp.format(r.bankroll)}${r.paused ? ' (paused)' : ''}`);
       console.log(`Matches with odds: ${r.events} · value picks found: ${r.found} · API credits left: ${r.remaining ?? 'unknown'}`);
+      if (r.budget !== Infinity) console.log(`Credit budget this run: ${r.budget}`);
       if (r.skipped.length) console.log(`Skipped (nothing in the next ${cfg.lookaheadHours}h): ${r.skipped.join(', ')}`);
+      if (r.overBudget.length) console.log(`Left for a later run (budget used up): ${r.overBudget.join(', ')}`);
       for (const e of r.errors) console.log(`Error: ${e}`);
       return;
     }

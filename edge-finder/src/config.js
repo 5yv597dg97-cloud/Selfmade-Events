@@ -26,6 +26,8 @@ const DEFAULTS = {
   minConsensusBooks: 5,
   onePerEvent: true,
   maxPicksPerDay: 0, // 0 = no limit
+  creditBudget: true, // spread the month's API credits evenly over the remaining runs
+  runsPerDay: 2,
   stopLossPct: 0.3, // pause once the bankroll has fallen this far from its starting point
   telegramToken: '',
   telegramChatId: '',
@@ -37,7 +39,10 @@ const DEFAULTS = {
 // short odds and small wins. "value" takes any odds with an edge.
 export const PROFILES = {
   safe: {
-    sports: 'tennis_*,mma_mixed_martial_arts,soccer_epl',
+    // In priority order: when credits are rationed, the first ones are scanned first.
+    sports: 'tennis_*,mma_mixed_martial_arts,soccer_epl,soccer_uefa_champs_league,soccer_spain_la_liga,'
+      + 'soccer_italy_serie_a,soccer_germany_bundesliga,basketball_nba,americanfootball_nfl,icehockey_nhl,'
+      + 'rugbyunion_*,rugbyleague_*,cricket_*',
     markets: 'h2h',
     books: 'paddypower,betfair_sb_uk,coral,ladbrokes_uk,betway',
     bankroll: 100,
@@ -57,6 +62,7 @@ const ENV = {
   minProb: 'EDGE_MIN_PROB', minOdds: 'EDGE_MIN_ODDS', maxOdds: 'EDGE_MAX_ODDS',
   maxStaleMinutes: 'EDGE_MAX_STALE_MINUTES', minLeadMinutes: 'EDGE_MIN_LEAD_MINUTES',
   lookaheadHours: 'EDGE_LOOKAHEAD_HOURS', maxPicksPerDay: 'EDGE_MAX_PICKS_PER_DAY',
+  creditBudget: 'EDGE_CREDIT_BUDGET', runsPerDay: 'EDGE_RUNS_PER_DAY',
   devigMethod: 'EDGE_DEVIG_METHOD', consensus: 'EDGE_CONSENSUS',
   minConsensusBooks: 'EDGE_MIN_CONSENSUS_BOOKS', onePerEvent: 'EDGE_ONE_PER_EVENT', db: 'EDGE_DB',
   stopLossPct: 'EDGE_STOP_LOSS_PCT', telegramToken: 'TELEGRAM_BOT_TOKEN', telegramChatId: 'TELEGRAM_CHAT_ID',
