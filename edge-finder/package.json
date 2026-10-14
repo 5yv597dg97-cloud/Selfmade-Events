@@ -1,0 +1,18 @@
+{
+  "name": "edge-finder",
+  "version": "0.1.0",
+  "description": "Finds positive expected value bets by comparing bookmaker prices against de-vigged sharp-market probabilities",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.13"
+  },
+  "bin": {
+    "edge": "src/cli.js"
+  },
+  "scripts": {
+    "edge": "node --disable-warning=ExperimentalWarning src/cli.js",
+    "demo": "node --disable-warning=ExperimentalWarning src/cli.js scan --fixture fixtures/sample-odds.json --now 2026-10-14T12:00:00Z",
+    "test": "node --disable-warning=ExperimentalWarning --test \"test/**/*.test.js\""
+  }
+}
