@@ -15,6 +15,10 @@ on:
         description: 'For preview: competitions, e.g. soccer_uefa_champs_league or soccer_epl,soccer_spain_la_liga'
         type: string
         default: soccer_uefa_champs_league
+      hours:
+        description: 'For preview: hours ahead to cover (blank = rest of today; 96 = the weekend from Thursday)'
+        type: string
+        default: ''
 
 concurrency:
   group: edge-finder
@@ -71,6 +75,7 @@ jobs:
           EDGE_BOOKS: ${{ vars.EDGE_BOOKS || 'paddypower' }}
           MODE: ${{ inputs.mode || 'scan' }}
           SPORTS: ${{ inputs.sports }}
+          HOURS: ${{ inputs.hours }}
         run: |
           if [ "$MODE" = props-check ]; then
             node --disable-warning=ExperimentalWarning src/cli.js props-check --sports "$SPORTS"
@@ -79,7 +84,7 @@ jobs:
           elif [ "$MODE" = backtest ]; then
             node --disable-warning=ExperimentalWarning src/cli.js backtest --telegram
           elif [ "$MODE" = preview ]; then
-            node --disable-warning=ExperimentalWarning src/cli.js preview --telegram --sports "$SPORTS"
+            node --disable-warning=ExperimentalWarning src/cli.js preview --telegram --sports "$SPORTS" ${HOURS:+--hours "$HOURS"}
           else
             node --disable-warning=ExperimentalWarning src/cli.js run
           fi
