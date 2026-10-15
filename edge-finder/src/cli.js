@@ -132,12 +132,12 @@ async function main() {
     if (!matches.length) throw new Error('No historical data could be downloaded from football-data.co.uk');
     const r = trixieBacktest(matches, { seasons });
     const units = (x) => `${x >= 0 ? '+' : '−'}£${Math.abs(x * 0.5).toFixed(2)}`; // £0.50 a line
-    const block = (title, s) => [
+    const block = (title, s) => (!s.trixies ? `<b>${title}</b>\nNo week qualified.` : [
       `<b>${title}</b>`,
       `${s.trixies} trixies (£${(s.trixies * 2).toFixed(0)} staked)`,
       `All 3 won: ${s.allThree} (${pct(s.allThree / s.trixies, 0)}) · paid something: ${s.returned} (${pct(s.returned / s.trixies, 0)})`,
       `Profit ${units(s.profit)} · ROI ${s.roi >= 0 ? '+' : ''}${pct(s.roi)} · longest run with nothing back: ${s.worstRun} weeks · worst drop ${units(s.low)}`,
-    ].join('\n');
+    ].join('\n'));
     const lines = [
       `<b>Trixie test</b>: ${r.weeks} weeks, ${matches.length} real matches, 10 European leagues, seasons ${seasons.join(', ')}. £0.50 a line (£2 a trixie). Each leg is a match favourite by Pinnacle's price.`,
       '',
@@ -147,7 +147,11 @@ async function main() {
       '',
       block('2. The same, at the best price any bookmaker offered', r.strongestBest),
       '',
-      block('3. System rules: 75%+ legs priced at least fair, trixie 2%+ value', r.value),
+      block('3. System rules: 75%+ legs priced at least fair, trixie 2%+ value', r.value[0.75]),
+      '',
+      block('4. Same rules with 65%+ legs', r.value[0.65]),
+      '',
+      block('5. Same rules with 50%+ legs', r.value[0.5]),
       '',
       'Weeks that went wrong (strategy 1):',
       ...r.strongest.examples,

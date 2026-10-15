@@ -81,7 +81,7 @@ export function backtest(matches, { testSeasons, halfLifeDays = 180, blend = 0.2
  *   strongestBest: the same at the best price any bookmaker offered
  *   value: only 75%+ legs priced at least fair at `book`, trixie 2%+ above fair
  */
-export function trixieBacktest(matches, { seasons, book = 'bet365', minProb = 0.75, minEdge = 0.02 } = {}) {
+export function trixieBacktest(matches, { seasons, book = 'bet365', minProbs = [0.75, 0.65, 0.5], minEdge = 0.02 } = {}) {
   const week = (t) => { const d = new Date(t); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d.toISOString().slice(0, 10); };
   const weeks = new Map();
   for (const m of matches) {
@@ -110,7 +110,8 @@ export function trixieBacktest(matches, { seasons, book = 'bet365', minProb = 0.
     s.peak = Math.max(s.peak, s.profit); s.low = Math.min(s.low, s.profit - s.peak);
     if (wins < 3 && s.examples.length < 3) s.examples.push(`${label}: ${legs.filter((l) => !l.won).map((l) => `${l.team} (${Math.round(l.p * 100)}%) didn't win`).join(', ')}`);
   };
-  const out = { strongest: fresh(), strongestBest: fresh(), value: fresh() };
+  const out = { strongest: fresh(), strongestBest: fresh(), value: {} };
+  for (const p of minProbs) out.value[p] = fresh();
   let favouriteFailed = 0;
   for (const [label, legs] of [...weeks.entries()].sort()) {
     const ranked = legs.filter((l) => l.price > 1 && l.best > 1).sort((a, b) => b.p - a.p);
@@ -119,14 +120,15 @@ export function trixieBacktest(matches, { seasons, book = 'bet365', minProb = 0.
     record(out.strongest, ranked.slice(0, 3), 'price', label);
     record(out.strongestBest, ranked.slice(0, 3), 'best', label);
     // The system's rules: likely and priced at least fair, then the best-value three.
-    const value = ranked.filter((l) => l.p >= minProb && l.p * l.price >= 1).sort((a, b) => b.p * b.price - a.p * a.price).slice(0, 3);
-    if (value.length === 3) {
+    for (const minProb of minProbs) {
+      const value = ranked.filter((l) => l.p >= minProb && l.p * l.price >= 1).sort((a, b) => b.p * b.price - a.p * a.price).slice(0, 3);
+      if (value.length < 3) continue;
       const ev = (pairs.reduce((a, [i, j]) => a + value[i].p * value[i].price * value[j].p * value[j].price, 0)
         + value.reduce((a, l) => a * l.p * l.price, 1)) / 4 - 1;
-      if (ev >= minEdge) record(out.value, value, 'price', label);
+      if (ev >= minEdge) record(out.value[minProb], value, 'price', label);
     }
   }
   const weeksPlayed = out.strongest.trixies;
-  for (const s of Object.values(out)) s.roi = s.trixies ? s.profit / (4 * s.trixies) : 0;
+  for (const s of [out.strongest, out.strongestBest, ...Object.values(out.value)]) s.roi = s.trixies ? s.profit / (4 * s.trixies) : 0;
   return { weeks: weeksPlayed, favouriteFailed, ...out };
 }
