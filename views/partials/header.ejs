@@ -1,16 +1,29 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-GB">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><%= title %> · Selfmade Events</title>
+  <meta name="description" content="<%= description %>">
+  <% if (noindex) { %><meta name="robots" content="noindex"><% } else { %><link rel="canonical" href="<%= canonicalUrl %>"><% } %>
+  <meta property="og:site_name" content="Selfmade Events">
+  <meta property="og:type" content="<%= ogType %>">
+  <meta property="og:title" content="<%= title %>">
+  <meta property="og:description" content="<%= description %>">
+  <meta property="og:url" content="<%= canonicalUrl %>">
+  <% if (ogImage) { %><meta property="og:image" content="<%= ogImage %>"><% } %>
+  <meta name="twitter:card" content="<%= ogImage ? 'summary_large_image' : 'summary' %>">
+  <meta name="theme-color" content="#5b4bdb">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
+  <% if (jsonLd) { %><script type="application/ld+json"><%- JSON.stringify(jsonLd).replace(/</g, '\\u003c') %></script><% } %>
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <header class="site-header">
   <div class="container nav">
-    <a class="brand" href="/">Selfmade Events</a>
-    <nav>
+    <a class="brand" href="/"><span class="brand-mark" aria-hidden="true">S</span>Selfmade Events</a>
+    <nav aria-label="Main">
       <a href="/">Browse</a>
       <% if (user) { %>
         <a href="/my-tickets">My tickets</a>
@@ -20,13 +33,14 @@
           <button class="link">Log out (<%= user.name %>)</button>
         </form>
       <% } else { %>
+        <a href="/register?role=host">Host an event</a>
         <a href="/login">Log in</a>
         <a class="button small" href="/register">Sign up</a>
       <% } %>
     </nav>
   </div>
 </header>
-<main class="container">
+<main class="container" id="main">
 <% for (const f of flash) { %>
   <div class="flash flash-<%= f.type %>" role="status"><%= f.message %></div>
 <% } %>

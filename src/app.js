@@ -9,7 +9,7 @@ import { NO_FEES } from './fees.js';
 import { createOrders } from './orders.js';
 import { createPayouts, DEFAULT_PAYOUT_CONFIG } from './payouts.js';
 import { SqliteSessionStore } from './session-store.js';
-import { loadUser, csrf, flash } from './middleware.js';
+import { loadUser, csrf, flash, pageMeta } from './middleware.js';
 import * as format from './format.js';
 import authRoutes from './routes/auth.js';
 import eventRoutes from './routes/events.js';
@@ -29,6 +29,7 @@ export function createApp({
   sessionSecret = process.env.SESSION_SECRET ?? crypto.randomBytes(32).toString('hex'),
 } = {}) {
   const app = express();
+  app.disable('x-powered-by');
   const production = process.env.NODE_ENV === 'production';
   // Behind Render's (or any) HTTPS proxy: trust X-Forwarded-Proto so secure cookies work.
   if (production) app.set('trust proxy', 1);
@@ -47,9 +48,10 @@ export function createApp({
     db.prepare('SELECT 1').get();
     res.type('text').send('ok');
   });
+  app.use(pageMeta);
   // Before the body parser, session and CSRF: Stripe signs the raw JSON body.
   app.use(webhookRoutes(ctx));
-  app.use(express.static(path.join(root, 'public')));
+  app.use(express.static(path.join(root, 'public'), { maxAge: production ? '1h' : 0 }));
   app.use(express.urlencoded({ extended: true, limit: '100kb' }));
   app.use(session({
     secret: sessionSecret,

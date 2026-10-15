@@ -10,6 +10,7 @@ The [`edge-finder/`](edge-finder/) folder holds a separate, standalone tool for 
 - Browse and search upcoming events
 - Buy one or more ticket types per event (max 10 of each type per order), paying on Stripe's secure checkout (cards, Apple Pay, Google Pay)
 - "My tickets" page with a unique code for each ticket, shown at the door
+- Add events to their calendar (.ics download or Google Calendar), open the venue on a map, and share the event link
 
 **Hosts**
 - Create events with several ticket types (name, price, capacity); save them as drafts or publish them
@@ -19,6 +20,11 @@ The [`edge-finder/`](edge-finder/) folder holds a separate, standalone tool for 
 - Cancel an event, which refunds every paid order automatically
 - Connect a bank account through Stripe (Payouts page) to receive ticket money directly; dashboard shows earnings after commission
 - New hosts are paid 2 days after each event; trusted hosts get daily payouts and can request instant payouts (see [Host payouts](#host-payouts))
+
+**Search and sharing**
+- Each page has a meta description, canonical link and Open Graph tags, so links show a proper preview when shared
+- Event pages include schema.org `Event` data (date, venue, prices, availability), which lets Google show them in event search
+- `/robots.txt` and `/sitemap.xml` list the public pages; host and ticket pages are kept out of search. Set `APP_URL` to your domain so these links use it
 
 **Under the hood**
 - Overselling can't happen: seats are reserved with a conditional `UPDATE` inside a SQLite transaction before payment is taken, and are released if payment fails

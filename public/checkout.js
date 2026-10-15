@@ -11,3 +11,23 @@
   form.addEventListener('change', update);
   update();
 })();
+
+// Share button: use the phone's share sheet where there is one, otherwise copy the link.
+(() => {
+  const btn = document.getElementById('share');
+  if (!btn) return;
+  const { title, url } = btn.dataset;
+  if (!navigator.share && !navigator.clipboard) return;
+  btn.hidden = false;
+  if (!navigator.share) btn.textContent = 'Copy link';
+  btn.addEventListener('click', async () => {
+    try {
+      if (navigator.share) await navigator.share({ title, url });
+      else {
+        await navigator.clipboard.writeText(url);
+        btn.textContent = 'Link copied';
+        setTimeout(() => { btn.textContent = 'Copy link'; }, 2000);
+      }
+    } catch { /* share sheet dismissed */ }
+  });
+})();

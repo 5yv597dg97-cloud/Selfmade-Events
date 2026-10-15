@@ -51,3 +51,18 @@ export function appUrl(req) {
   const configured = process.env.APP_URL ?? process.env.RENDER_EXTERNAL_URL;
   return (configured ?? `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
 }
+
+export const SITE_DESCRIPTION = 'Discover upcoming events and book tickets in seconds, or host your own event and get paid straight to your bank.';
+
+/** Defaults for the <head> tags that search engines and link previews read; pages override them. */
+export function pageMeta(req, res, next) {
+  const base = appUrl(req);
+  res.locals.baseUrl = base;
+  res.locals.canonicalUrl = `${base}${req.path}`;
+  res.locals.description = SITE_DESCRIPTION;
+  res.locals.ogImage = null;
+  res.locals.ogType = 'website';
+  res.locals.jsonLd = null;
+  res.locals.noindex = false;
+  next();
+}

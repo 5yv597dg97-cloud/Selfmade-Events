@@ -56,3 +56,19 @@ export function parseCents(value) {
   if (!/^\d+(\.\d{1,2})?$/.test(s)) return NaN;
   return Math.round(Number(s) * 100);
 }
+
+/** Short date parts in UK time for the date badge on event cards: { day: '22', month: 'Oct', weekday: 'Thu' }. */
+export function dateBadge(iso) {
+  const parts = new Intl.DateTimeFormat(LOCALE, { timeZone: TIME_ZONE, weekday: 'short', day: 'numeric', month: 'short' })
+    .formatToParts(new Date(iso));
+  const get = (type) => parts.find((p) => p.type === type)?.value ?? '';
+  return { day: get('day'), month: get('month'), weekday: get('weekday') };
+}
+
+/** First `max` characters of plain text on one line, cut at a word, for meta descriptions. */
+export function excerpt(text, max = 160) {
+  const s = String(text ?? '').replace(/\s+/g, ' ').trim();
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max - 1);
+  return `${cut.slice(0, cut.lastIndexOf(' ') > max / 2 ? cut.lastIndexOf(' ') : cut.length)}…`;
+}

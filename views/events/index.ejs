@@ -1,29 +1,58 @@
 <%- include('../partials/header') %>
 <section class="hero">
-  <h1>Find your next event</h1>
-  <form method="get" action="/" class="search">
-    <input type="search" name="q" placeholder="Search by name, venue or description" value="<%= q %>" aria-label="Search events">
+  <div class="hero-text">
+    <p class="eyebrow">Live music · Workshops · Meetups · Parties</p>
+    <h1>Find your next event</h1>
+    <p class="lede">Book tickets in seconds and keep them all in one place. Your ticket code is ready the moment you pay.</p>
+  </div>
+  <form method="get" action="/" class="search" role="search">
+    <input type="search" name="q" placeholder="Search events, venues or towns" value="<%= q %>" aria-label="Search events">
     <button class="button">Search</button>
   </form>
 </section>
+
+<div class="section-head">
+  <h2><%= q ? `Results for “${q}”` : 'Upcoming events' %></h2>
+  <% if (q) { %><a href="/">Clear search</a><% } else if (events.length) { %><span class="muted small"><%= events.length %> event<%= events.length === 1 ? '' : 's' %></span><% } %>
+</div>
+
 <% if (!events.length) { %>
-  <p class="empty"><%= q ? `No events match “${q}”.` : 'No upcoming events yet — check back soon.' %></p>
+  <div class="empty card">
+    <p><%= q ? `No events match “${q}”. Try a different word, or browse everything.` : 'No upcoming events yet. Check back soon.' %></p>
+    <% if (q) { %><a class="button secondary small" href="/">See all events</a><% } %>
+  </div>
 <% } else { %>
   <div class="grid">
-    <% for (const e of events) { %>
+    <% for (const e of events) { const d = format.dateBadge(e.starts_at); %>
       <a class="event-card" href="/events/<%= e.id %>">
-        <% if (e.image_url) { %><img src="<%= e.image_url %>" alt="" loading="lazy"><% } else { %><div class="placeholder"><%= e.title.slice(0, 1) %></div><% } %>
+        <div class="media">
+          <% if (e.image_url) { %><img src="<%= e.image_url %>" alt="" loading="lazy"><% } else { %><div class="placeholder" style="--hue: <%= 225 + (e.id * 47) % 110 %>" aria-hidden="true"><%= e.title.slice(0, 1) %></div><% } %>
+          <span class="date-badge" aria-hidden="true"><span><%= d.month %></span><strong><%= d.day %></strong></span>
+          <% if (e.remaining <= 0) { %><span class="badge badge-soldout overlay">Sold out</span>
+          <% } else if (e.remaining <= 10) { %><span class="badge badge-low overlay">Only <%= e.remaining %> left</span><% } %>
+        </div>
         <div class="body">
-          <h2><%= e.title %></h2>
+          <h3><%= e.title %></h3>
           <p class="muted"><%= format.dateTime(e.starts_at) %></p>
-          <p class="muted"><%= e.venue %></p>
+          <p class="muted venue"><%= e.venue %></p>
           <p class="price">
-            <% if (e.remaining <= 0) { %><span class="badge badge-soldout">Sold out</span>
-            <% } else { %>From <%= format.money(e.min_price ?? 0) %><% } %>
+            <% if (!e.max_price) { %>Free
+            <% } else if (!e.min_price) { %>Free – <%= format.money(e.max_price) %>
+            <% } else { %>From <%= format.money(e.min_price) %><% } %>
           </p>
         </div>
       </a>
     <% } %>
   </div>
+<% } %>
+
+<% if (!user) { %>
+  <section class="host-cta card">
+    <div>
+      <h2>Running an event?</h2>
+      <p class="muted">Sell tickets here in minutes. Set your ticket types and prices, check guests in at the door, and get paid straight to your bank through Stripe.</p>
+    </div>
+    <a class="button" href="/register?role=host">Start hosting</a>
+  </section>
 <% } %>
 <%- include('../partials/footer') %>

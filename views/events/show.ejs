@@ -1,15 +1,30 @@
 <%- include('../partials/header') %>
 <article class="event-detail">
+  <a class="back-link" href="/">← All events</a>
   <% if (event.image_url) { %><img class="banner" src="<%= event.image_url %>" alt=""><% } %>
   <div class="columns">
     <div>
       <% if (event.status === 'cancelled') { %><div class="flash flash-error">This event has been cancelled. All ticket holders have been refunded.</div><% } %>
       <% if (event.status === 'draft') { %><div class="flash flash-info">Draft preview — only you can see this page.</div><% } %>
       <h1><%= event.title %></h1>
-      <p class="meta"><strong><%= format.dateTime(event.starts_at) %></strong><br><%= event.venue %><br><span class="muted">Hosted by <%= event.host_name %></span></p>
-      <div class="description"><%= event.description %></div>
+      <ul class="facts">
+        <li><span class="fact-icon" aria-hidden="true">📅</span><div><strong><%= format.dateTime(event.starts_at) %></strong><br><span class="muted small">UK time</span></div></li>
+        <li><span class="fact-icon" aria-hidden="true">📍</span><div><strong><%= event.venue %></strong><br><a class="small" href="<%= mapUrl %>" target="_blank" rel="noopener">View on map</a></div></li>
+        <li><span class="fact-icon" aria-hidden="true">👤</span><div>Hosted by <strong><%= event.host_name %></strong></div></li>
+      </ul>
+      <% if (event.status !== 'cancelled') { %>
+        <div class="event-actions">
+          <a class="button secondary small" href="/events/<%= event.id %>/calendar.ics">Add to calendar</a>
+          <a class="button secondary small" href="<%= googleCalendarUrl %>" target="_blank" rel="noopener">Google Calendar</a>
+          <button type="button" class="button secondary small" id="share" data-title="<%= event.title %>" data-url="<%= canonicalUrl %>" hidden>Share</button>
+        </div>
+      <% } %>
+      <% if (event.description) { %>
+        <h2>About this event</h2>
+        <div class="description"><%= event.description %></div>
+      <% } %>
     </div>
-    <aside class="card">
+    <aside class="card tickets-card">
       <h2>Tickets</h2>
       <% const onSale = event.status === 'published' && new Date(event.starts_at) > new Date() && !salesBlocked; %>
       <form method="post" action="/events/<%= event.id %>/checkout" class="stack" id="checkout">
@@ -18,7 +33,7 @@
           <div class="ticket-row">
             <div>
               <strong><%= t.name %></strong><br>
-              <span class="muted"><%= format.money(t.price_cents) %><% if (t.booking_fee) { %> + <%= format.money(t.booking_fee) %> fee<% } %> · <%= left > 0 ? `${left} left` : 'Sold out' %></span>
+              <span class="muted"><%= format.money(t.price_cents) %><% if (t.booking_fee) { %> + <%= format.money(t.booking_fee) %> fee<% } %> · </span><% if (left <= 0) { %><span class="sold-out">Sold out</span><% } else if (left <= 10) { %><span class="low-stock">Only <%= left %> left</span><% } else { %><span class="muted"><%= left %> left</span><% } %>
             </div>
             <% if (onSale && left > 0) { %>
               <select name="qty_<%= t.id %>" data-price="<%= t.price_cents + t.booking_fee %>" aria-label="Quantity for <%= t.name %>">

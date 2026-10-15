@@ -1,4 +1,17 @@
 </main>
-<footer class="site-footer container">Selfmade Events — host events, sell tickets.</footer>
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div>
+      <a class="brand" href="/"><span class="brand-mark" aria-hidden="true">S</span>Selfmade Events</a>
+      <p class="muted small">Host events, sell tickets, get paid.</p>
+    </div>
+    <nav aria-label="Footer" class="footer-links">
+      <a href="/">Browse events</a>
+      <a href="/register?role=host">Host an event</a>
+      <% if (user) { %><a href="/my-tickets">My tickets</a><% } else { %><a href="/login">Log in</a><% } %>
+    </nav>
+    <p class="muted small">Payments are processed securely by Stripe. © <%= new Date().getFullYear() %> Selfmade Events</p>
+  </div>
+</footer>
 </body>
 </html>

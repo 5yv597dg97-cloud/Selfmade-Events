@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { requireLogin, appUrl } from '../middleware.js';
 import { priceOrder, bookingFeeFor } from '../fees.js';
 import { CHECKOUT_HOLD_MS, SoldOutError } from '../orders.js';
+import { eventIcs, googleCalendarUrl, DEFAULT_EVENT_HOURS } from '../calendar.js';
+import { excerpt, CURRENCY } from '../format.js';
 
 export const MAX_TICKETS_PER_TYPE = 10;
 
@@ -10,7 +12,7 @@ export default function eventRoutes({ db, payments, fees, orders }) {
 
   const listUpcoming = db.prepare(`
     SELECT e.*, u.name AS host_name,
-           MIN(t.price_cents) AS min_price,
+           MIN(t.price_cents) AS min_price, MAX(t.price_cents) AS max_price,
            COALESCE(SUM(t.capacity - t.sold), 0) AS remaining
     FROM events e
     JOIN users u ON u.id = e.host_id
@@ -20,6 +22,7 @@ export default function eventRoutes({ db, payments, fees, orders }) {
     GROUP BY e.id
     ORDER BY e.starts_at
     LIMIT 100`);
+  const listForSitemap = db.prepare(`SELECT id, created_at FROM events WHERE status = 'published' AND starts_at >= ? ORDER BY starts_at LIMIT 5000`);
   const getEvent = db.prepare(`
     SELECT e.*, u.name AS host_name, u.stripe_account_id AS host_stripe_account_id, u.stripe_charges_enabled AS host_charges_enabled
     FROM events e JOIN users u ON u.id = e.host_id WHERE e.id = ?`);
@@ -34,7 +37,29 @@ export default function eventRoutes({ db, payments, fees, orders }) {
     const q = String(req.query.q ?? '').trim().slice(0, 100);
     const like = `%${q}%`;
     const events = listUpcoming.all(new Date().toISOString(), q, like, like, like);
-    res.render('events/index', { title: 'Upcoming events', events, q });
+    res.render('events/index', { title: 'Upcoming events', events, q, noindex: q !== '' });
+  });
+
+  router.get('/robots.txt', (req, res) => {
+    res.type('text').send(`User-agent: *\nDisallow: /host\nDisallow: /my-tickets\nDisallow: /orders\nSitemap: ${res.locals.baseUrl}/sitemap.xml\n`);
+  });
+
+  router.get('/sitemap.xml', (req, res) => {
+    const base = res.locals.baseUrl;
+    const urls = [`${base}/`, ...listForSitemap.all(new Date().toISOString()).map((e) => `${base}/events/${e.id}`)];
+    res.type('application/xml').send(
+      `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${
+        urls.map((u) => `  <url><loc>${u}</loc></url>`).join('\n')}\n</urlset>\n`,
+    );
+  });
+
+  router.get('/events/:id/calendar.ics', (req, res, next) => {
+    const event = getEvent.get(Number(req.params.id));
+    if (!isVisible(event, req.user)) return next();
+    const url = `${res.locals.baseUrl}/events/${event.id}`;
+    res.type('text/calendar; charset=utf-8')
+      .attachment(`event-${event.id}.ics`)
+      .send(eventIcs(event, { url, host: req.hostname }));
   });
 
   router.get('/events/:id', (req, res, next) => {
@@ -42,7 +67,15 @@ export default function eventRoutes({ db, payments, fees, orders }) {
     if (!isVisible(event, req.user)) return next();
     const types = getTypes.all(event.id).map((t) => ({ ...t, booking_fee: bookingFeeFor(t.price_cents, fees) }));
     const salesBlocked = payments.requiresHostAccount && !event.host_charges_enabled && types.some((t) => t.price_cents > 0);
-    res.render('events/show', { title: event.title, event, types, max: MAX_TICKETS_PER_TYPE, salesBlocked });
+    const url = `${res.locals.baseUrl}/events/${event.id}`;
+    res.render('events/show', {
+      title: event.title, event, types, max: MAX_TICKETS_PER_TYPE, salesBlocked,
+      description: excerpt(event.description) || `${event.title} at ${event.venue}. Book tickets on Selfmade Events.`,
+      ogImage: event.image_url, noindex: event.status === 'draft',
+      jsonLd: eventJsonLd(event, types, url),
+      googleCalendarUrl: googleCalendarUrl(event, { url }),
+      mapUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.venue)}`,
+    });
   });
 
   router.post('/events/:id/checkout', requireLogin, async (req, res, next) => {
@@ -127,4 +160,32 @@ export default function eventRoutes({ db, payments, fees, orders }) {
   });
 
   return router;
+}
+
+/** schema.org Event data, which lets search engines show the event with its date, place and prices. */
+function eventJsonLd(event, types, url) {
+  const start = new Date(event.starts_at);
+  const status = event.status === 'cancelled' ? 'EventCancelled' : 'EventScheduled';
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Event',
+    name: event.title,
+    description: excerpt(event.description, 500) || undefined,
+    startDate: start.toISOString(),
+    endDate: new Date(start.getTime() + DEFAULT_EVENT_HOURS * 3600 * 1000).toISOString(),
+    eventStatus: `https://schema.org/${status}`,
+    eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+    location: { '@type': 'Place', name: event.venue, address: event.venue },
+    image: event.image_url ? [event.image_url] : undefined,
+    organizer: { '@type': 'Person', name: event.host_name },
+    url,
+    offers: types.map((t) => ({
+      '@type': 'Offer',
+      name: t.name,
+      price: ((t.price_cents + t.booking_fee) / 100).toFixed(2),
+      priceCurrency: CURRENCY,
+      availability: `https://schema.org/${t.capacity > t.sold ? 'InStock' : 'SoldOut'}`,
+      url,
+    })),
+  };
 }
