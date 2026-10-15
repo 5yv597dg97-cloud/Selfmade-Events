@@ -71,6 +71,24 @@ const MIGRATIONS = [
    UPDATE orders SET subtotal_cents = total_cents;
    CREATE UNIQUE INDEX idx_orders_checkout ON orders(checkout_session_id);
    CREATE INDEX idx_orders_pending ON orders(status, expires_at);`,
+  // 2: Hosts pay to feature an event at the top of the homepage for a number of days.
+  `CREATE TABLE promotions (
+     id                  INTEGER PRIMARY KEY,
+     event_id            INTEGER NOT NULL REFERENCES events(id),
+     host_id             INTEGER NOT NULL REFERENCES users(id),
+     days                INTEGER NOT NULL CHECK (days > 0),
+     amount_cents        INTEGER NOT NULL CHECK (amount_cents >= 0),
+     status              TEXT NOT NULL CHECK (status IN ('pending', 'paid', 'failed', 'refunded')),
+     checkout_session_id TEXT,
+     payment_reference   TEXT,
+     starts_at           TEXT,              -- featured period, set once paid (ISO-8601 UTC)
+     ends_at             TEXT,
+     expires_at          TEXT NOT NULL,     -- when an unpaid checkout is given up on
+     created_at          TEXT NOT NULL DEFAULT (datetime('now'))
+   );
+   CREATE UNIQUE INDEX idx_promotions_checkout ON promotions(checkout_session_id);
+   CREATE INDEX idx_promotions_event ON promotions(event_id, status, ends_at);
+   CREATE INDEX idx_promotions_pending ON promotions(status, expires_at);`,
 ];
 
 function migrate(db) {

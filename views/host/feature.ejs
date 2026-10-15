@@ -1,0 +1,35 @@
+<%- include('../partials/header') %>
+<section class="card narrow wide">
+  <h1>Feature your event</h1>
+  <p><strong><%= event.title %></strong><br><span class="muted"><%= format.dateTime(event.starts_at) %> · <%= event.venue %></span></p>
+  <p>Featured events are shown first on the homepage, above every other event, so more people see them and buy tickets. It costs <strong><%= format.money(dayPrice) %> a day</strong>.</p>
+  <% if (featuredUntil) { %>
+    <div class="flash flash-success">Featured until <%= format.dateTime(featuredUntil) %>. Buying more days adds them to the end.</div>
+  <% } %>
+  <% if (!options.length) { %>
+    <p class="muted">Your event is already featured until it starts.</p>
+    <p><a href="/host">← Dashboard</a></p>
+  <% } else { %>
+    <form method="post" action="/host/events/<%= event.id %>/feature" class="stack">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="options" role="radiogroup" aria-label="How long to feature it for">
+        <% const preselected = options.some((o) => o.days === 7) ? 7 : options.at(-1).days; %>
+        <% for (const o of options) { %>
+          <label class="option">
+            <input type="radio" name="days" value="<%= o.days %>" <%= o.days === preselected ? 'checked' : '' %> required>
+            <span><strong><%= o.days %> day<%= o.days === 1 ? '' : 's' %></strong><br><span class="muted small">until <%= format.dateTime(o.end) %></span></span>
+            <span class="option-price"><%= format.money(o.price) %></span>
+          </label>
+        <% } %>
+      </div>
+      <div class="form-actions">
+        <button class="button"><%= provider === 'stripe' ? 'Continue to payment' : 'Feature it' %></button>
+        <a href="/host">Cancel</a>
+      </div>
+      <p class="muted small">
+        <% if (provider === 'stripe') { %>You'll pay securely on Stripe. <% } %>Featuring stops when your event starts. Days already featured aren't refunded if you cancel the event.
+      </p>
+    </form>
+  <% } %>
+</section>
+<%- include('../partials/footer') %>

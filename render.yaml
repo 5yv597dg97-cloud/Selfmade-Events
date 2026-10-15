@@ -31,11 +31,20 @@ services:
       # Can be left blank on the first deploy and added once the site has a URL.
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
-      # Your fees (0 = none). Booking fee is paid by the buyer per paid ticket;
-      # commission comes out of the host's ticket sales.
+      # Your fees. Booking fee is paid by the buyer per paid ticket; commission comes
+      # out of the host's ticket sales. Stripe's card fee (1.5% + 20p for UK cards,
+      # up to 3.25% + 20p from abroad) comes out of these, so 5% + 30p keeps a profit
+      # on every sale while hosts keep 100% of their ticket price.
       - key: BOOKING_FEE_PERCENT
-        value: "0"
+        value: "5"
       - key: BOOKING_FEE_FIXED_PENCE
-        value: "0"
+        value: "30"
       - key: PLATFORM_COMMISSION_PERCENT
         value: "0"
+      # What hosts pay per day to feature an event at the top of the homepage (0 = off).
+      - key: FEATURED_PRICE_PER_DAY_PENCE
+        value: "200"
+      # Your login email(s), comma-separated, to see the Earnings page. Sign up on the
+      # site with this email first: accounts aren't email-verified.
+      - key: ADMIN_EMAILS
+        sync: false

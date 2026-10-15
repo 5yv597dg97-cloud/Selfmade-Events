@@ -7,14 +7,16 @@ import { openDb } from './db.js';
 import { mockPayments } from './payments.js';
 import { NO_FEES } from './fees.js';
 import { createOrders } from './orders.js';
+import { createPromotions } from './promotions.js';
 import { SqliteSessionStore } from './session-store.js';
-import { loadUser, csrf, flash } from './middleware.js';
+import { loadUser, csrf, flash, adminEmailsFromEnv } from './middleware.js';
 import * as format from './format.js';
 import authRoutes from './routes/auth.js';
 import eventRoutes from './routes/events.js';
 import hostRoutes from './routes/host.js';
 import ticketRoutes from './routes/tickets.js';
 import webhookRoutes from './routes/webhooks.js';
+import adminRoutes from './routes/admin.js';
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
@@ -22,6 +24,7 @@ export function createApp({
   db = openDb(),
   payments = mockPayments,
   fees = NO_FEES,
+  adminEmails = adminEmailsFromEnv(),
   sweepIntervalMs = null,
   sessionSecret = process.env.SESSION_SECRET ?? crypto.randomBytes(32).toString('hex'),
 } = {}) {
@@ -35,8 +38,13 @@ export function createApp({
   app.locals.paymentsProvider = payments.name;
 
   const orders = createOrders({ db, payments });
-  if (sweepIntervalMs) setInterval(() => orders.sweep(), sweepIntervalMs).unref();
-  const ctx = { db, payments, fees, orders };
+  const promotions = createPromotions({ db, payments });
+  if (sweepIntervalMs) {
+    setInterval(() => {
+      orders.sweep().then(() => promotions.sweep()).catch((err) => console.error('Sweep failed:', err));
+    }, sweepIntervalMs).unref();
+  }
+  const ctx = { db, payments, fees, orders, promotions };
 
   app.get('/healthz', (req, res) => {
     db.prepare('SELECT 1').get();
@@ -54,13 +62,14 @@ export function createApp({
     cookie: { httpOnly: true, sameSite: 'lax', secure: production, maxAge: 14 * 24 * 60 * 60 * 1000 },
   }));
   app.use(flash);
-  app.use(loadUser(db));
+  app.use(loadUser(db, adminEmails));
   app.use(csrf);
 
   app.use(authRoutes(ctx));
   app.use(eventRoutes(ctx));
   app.use('/host', hostRoutes(ctx));
   app.use(ticketRoutes(ctx));
+  app.use('/admin', adminRoutes(ctx));
 
   app.use((req, res) => {
     res.status(404).render('error', { title: 'Not found', message: "We couldn't find that page." });

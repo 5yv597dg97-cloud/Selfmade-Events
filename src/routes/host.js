@@ -68,7 +68,7 @@ function formTypesFromRows(rows) {
   return rows.map((t) => ({ id: t.id, name: t.name, price: (t.price_cents / 100).toFixed(2), capacity: String(t.capacity), sold: t.sold }));
 }
 
-export default function hostRoutes({ db, payments }) {
+export default function hostRoutes({ db, payments, fees, promotions }) {
   const router = Router();
   router.use(requireHost);
 
@@ -76,7 +76,8 @@ export default function hostRoutes({ db, payments }) {
     SELECT e.*,
       COALESCE((SELECT SUM(capacity) FROM ticket_types WHERE event_id = e.id), 0) AS capacity,
       COALESCE((SELECT SUM(sold) FROM ticket_types WHERE event_id = e.id), 0) AS sold,
-      COALESCE((SELECT SUM(subtotal_cents - commission_cents) FROM orders WHERE event_id = e.id AND status = 'paid'), 0) AS earnings_cents
+      COALESCE((SELECT SUM(subtotal_cents - commission_cents) FROM orders WHERE event_id = e.id AND status = 'paid'), 0) AS earnings_cents,
+      (SELECT MAX(ends_at) FROM promotions WHERE event_id = e.id AND status = 'paid') AS featured_until
     FROM events e WHERE e.host_id = ? ORDER BY e.starts_at DESC`);
   const getOwnEvent = db.prepare('SELECT * FROM events WHERE id = ? AND host_id = ?');
   const getTypes = db.prepare('SELECT * FROM ticket_types WHERE event_id = ? ORDER BY id');
@@ -150,12 +151,22 @@ export default function hostRoutes({ db, payments }) {
     }
   }
 
+  const featuringOn = fees.featuredDayPence > 0;
+
   const PAYOUTS_NEEDED = 'Set up payouts before publishing an event with paid tickets, so ticket money can reach you.';
 
   router.get('/', async (req, res, next) => {
     try {
       await refreshPayoutStatus(req.user);
-      res.render('host/dashboard', { title: 'Host dashboard', events: hostEvents.all(req.user.id), needsPayouts: !canSellPaid(req.user) });
+      const now = new Date();
+      const events = hostEvents.all(req.user.id).map((e) => ({
+        ...e,
+        featured: e.status === 'published' && new Date(e.featured_until) > now && new Date(e.starts_at) > now,
+        canFeature: featuringOn && e.status === 'published' && new Date(e.starts_at) > now,
+      }));
+      res.render('host/dashboard', {
+        title: 'Host dashboard', events, needsPayouts: !canSellPaid(req.user), featuredDayPence: fees.featuredDayPence,
+      });
     } catch (err) {
       next(err);
     }
@@ -314,6 +325,114 @@ export default function hostRoutes({ db, payments }) {
       }
       if (failed) req.flash('error', `Event cancelled, but ${failed} refund(s) failed. Please refund those buyers manually.`);
       else req.flash('success', `"${e.title}" was cancelled and all buyers were refunded.`);
+      res.redirect('/host');
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  /** Load req.params.id as an event the current host can feature right now, or explain why not. */
+  function featurableEvent(req, res, next) {
+    if (!featuringOn) return res.status(404).render('error', { title: 'Not found', message: "We couldn't find that page." });
+    const e = req.event;
+    if (e.status !== 'published' || new Date(e.starts_at) <= new Date()) {
+      req.flash('error', 'Only published events that haven\'t started yet can be featured.');
+      return res.redirect('/host');
+    }
+    next();
+  }
+
+  router.get('/events/:id/feature', ownEvent, featurableEvent, (req, res) => {
+    const now = new Date();
+    const until = promotions.featuredUntil(req.event.id, now);
+    const start = until ?? now;
+    const eventStart = new Date(req.event.starts_at);
+    const options = promotions.dayOptions(req.event, now).map((days) => {
+      const end = new Date(Math.min(start.getTime() + days * 864e5, eventStart.getTime()));
+      return { days, price: days * fees.featuredDayPence, end: end.toISOString() };
+    });
+    res.render('host/feature', {
+      title: `Feature ${req.event.title}`, event: req.event, options, featuredUntil: until?.toISOString() ?? null,
+      dayPrice: fees.featuredDayPence, provider: payments.name,
+    });
+  });
+
+  router.post('/events/:id/feature', ownEvent, featurableEvent, async (req, res, next) => {
+    const e = req.event;
+    const back = `/host/events/${e.id}/feature`;
+    const days = Number(req.body.days);
+    if (!promotions.dayOptions(e).includes(days)) {
+      req.flash('error', 'Choose how many days to feature your event for.');
+      return res.redirect(back);
+    }
+    const amountCents = days * fees.featuredDayPence;
+    const { id, expiresAt } = promotions.create({ event: e, hostId: req.user.id, days, amountCents });
+
+    let result;
+    try {
+      const base = appUrl(req);
+      result = await payments.startPlatformCheckout({
+        key: `promotion-${id}`,
+        name: `Featured listing: ${e.title} (${days} day${days === 1 ? '' : 's'})`,
+        amountCents,
+        buyerEmail: req.user.email,
+        metadata: { promotion_id: String(id), event_id: String(e.id) },
+        successUrl: `${base}/host/promotions/${id}/success`,
+        cancelUrl: `${base}/host/promotions/${id}/cancel`,
+        expiresAt,
+      });
+    } catch (err) {
+      console.error(`Promotion ${id}: checkout failed to start:`, err.message);
+      promotions.release(id);
+      req.flash('error', "We couldn't start the payment. You have not been charged. Please try again.");
+      return res.redirect(back);
+    }
+
+    try {
+      if (result.status === 'paid') {
+        flashPromotion(req, await promotions.fulfil(id, result.reference), e.title);
+        return res.redirect('/host');
+      }
+      promotions.attachCheckout(id, result.sessionId);
+      res.redirect(303, result.url);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  function flashPromotion(req, status, title) {
+    if (status === 'paid') req.flash('success', `"${title}" is now featured on the homepage.`);
+    else if (status === 'pending') req.flash('info', "We're confirming your payment. Your event will be featured in a moment.");
+    else if (status === 'refunded') req.flash('error', 'Your event can no longer be featured, so your payment has been refunded in full.');
+    else req.flash('error', 'Your payment did not go through, so your event has not been featured.');
+  }
+
+  /** Load req.params.id as one of the current host's featured-listing purchases, or 404. */
+  function ownPromotion(req, res, next) {
+    const promo = promotions.get(Number(req.params.id));
+    if (!promo || promo.host_id !== req.user.id) {
+      return res.status(404).render('error', { title: 'Not found', message: "We couldn't find that payment." });
+    }
+    req.promotion = promo;
+    next();
+  }
+
+  // Stripe sends the host here after paying; the webhook normally got there first.
+  router.get('/promotions/:id/success', ownPromotion, async (req, res, next) => {
+    try {
+      const status = await promotions.settle(req.promotion);
+      flashPromotion(req, status, getOwnEvent.get(req.promotion.event_id, req.user.id).title);
+      res.redirect('/host');
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.get('/promotions/:id/cancel', ownPromotion, async (req, res, next) => {
+    try {
+      const status = await promotions.abandon(req.promotion);
+      if (status === 'paid') flashPromotion(req, status, getOwnEvent.get(req.promotion.event_id, req.user.id).title);
+      else if (req.promotion.status === 'pending') req.flash('info', 'Payment cancelled. You have not been charged.');
       res.redirect('/host');
     } catch (err) {
       next(err);

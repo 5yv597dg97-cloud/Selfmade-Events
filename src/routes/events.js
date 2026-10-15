@@ -8,18 +8,31 @@ export const MAX_TICKETS_PER_TYPE = 10;
 export default function eventRoutes({ db, payments, fees, orders }) {
   const router = Router();
 
+  const CARD_COLUMNS = `
+    e.*, u.name AS host_name,
+    MIN(t.price_cents) AS min_price,
+    COALESCE(SUM(t.capacity - t.sold), 0) AS remaining,
+    EXISTS (SELECT 1 FROM promotions p WHERE p.event_id = e.id AND p.status = 'paid' AND p.starts_at <= $now AND p.ends_at > $now) AS featured`;
   const listUpcoming = db.prepare(`
-    SELECT e.*, u.name AS host_name,
-           MIN(t.price_cents) AS min_price,
-           COALESCE(SUM(t.capacity - t.sold), 0) AS remaining
+    SELECT ${CARD_COLUMNS}
     FROM events e
     JOIN users u ON u.id = e.host_id
     LEFT JOIN ticket_types t ON t.event_id = e.id
-    WHERE e.status = 'published' AND e.starts_at >= ?
-      AND (? = '' OR e.title LIKE ? OR e.venue LIKE ? OR e.description LIKE ?)
+    WHERE e.status = 'published' AND e.starts_at >= $now
+      AND ($q = '' OR e.title LIKE $like OR e.venue LIKE $like OR e.description LIKE $like)
     GROUP BY e.id
     ORDER BY e.starts_at
     LIMIT 100`);
+  const listFeatured = db.prepare(`
+    SELECT ${CARD_COLUMNS}
+    FROM events e
+    JOIN users u ON u.id = e.host_id
+    LEFT JOIN ticket_types t ON t.event_id = e.id
+    WHERE e.status = 'published' AND e.starts_at >= $now
+    GROUP BY e.id
+    HAVING featured
+    ORDER BY e.starts_at
+    LIMIT 6`);
   const getEvent = db.prepare(`
     SELECT e.*, u.name AS host_name, u.stripe_account_id AS host_stripe_account_id, u.stripe_charges_enabled AS host_charges_enabled
     FROM events e JOIN users u ON u.id = e.host_id WHERE e.id = ?`);
@@ -32,9 +45,13 @@ export default function eventRoutes({ db, payments, fees, orders }) {
 
   router.get('/', (req, res) => {
     const q = String(req.query.q ?? '').trim().slice(0, 100);
-    const like = `%${q}%`;
-    const events = listUpcoming.all(new Date().toISOString(), q, like, like, like);
-    res.render('events/index', { title: 'Upcoming events', events, q });
+    const now = new Date().toISOString();
+    let events = listUpcoming.all({ now, q, like: `%${q}%` });
+    // Paid featured listings go first; on a search they keep their place, marked as featured.
+    const featured = q ? [] : listFeatured.all({ now });
+    const shown = new Set(featured.map((e) => e.id));
+    events = events.filter((e) => !shown.has(e.id));
+    res.render('events/index', { title: 'Upcoming events', events, featured, q });
   });
 
   router.get('/events/:id', (req, res, next) => {

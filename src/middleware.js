@@ -1,9 +1,18 @@
 import crypto from 'node:crypto';
 
-export function loadUser(db) {
+/**
+ * Site owners, from ADMIN_EMAILS (comma-separated). Accounts aren't email-verified,
+ * so the owner should sign up with these addresses before setting the variable.
+ */
+export function adminEmailsFromEnv(env = process.env) {
+  return new Set(String(env.ADMIN_EMAILS ?? '').split(/[\s,]+/).map((e) => e.trim().toLowerCase()).filter(Boolean));
+}
+
+export function loadUser(db, adminEmails = new Set()) {
   const stmt = db.prepare('SELECT id, name, email, role, stripe_account_id, stripe_charges_enabled FROM users WHERE id = ?');
   return (req, res, next) => {
     req.user = req.session.userId ? stmt.get(req.session.userId) ?? null : null;
+    if (req.user) req.user.isAdmin = adminEmails.has(req.user.email.toLowerCase());
     res.locals.user = req.user;
     next();
   };
@@ -43,6 +52,12 @@ export function requireHost(req, res, next) {
   if (req.user.role !== 'host') {
     return res.status(403).render('error', { title: 'Hosts only', message: 'You need a host account to manage events.' });
   }
+  next();
+}
+
+export function requireAdmin(req, res, next) {
+  if (!req.user) return requireLogin(req, res, next);
+  if (!req.user.isAdmin) return res.status(404).render('error', { title: 'Not found', message: "We couldn't find that page." });
   next();
 }
 

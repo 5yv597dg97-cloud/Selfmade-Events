@@ -6,24 +6,20 @@
     <button class="button">Search</button>
   </form>
 </section>
-<% if (!events.length) { %>
+<% if (featured.length) { %>
+  <section class="featured-section" aria-labelledby="featured-heading">
+    <h2 id="featured-heading" class="section-title">Featured</h2>
+    <div class="grid">
+      <% for (const e of featured) { %><%- include('../partials/event-card', { e }) %><% } %>
+    </div>
+  </section>
+  <% if (events.length) { %><h2 class="section-title">All upcoming events</h2><% } %>
+<% } %>
+<% if (!events.length && !featured.length) { %>
   <p class="empty"><%= q ? `No events match “${q}”.` : 'No upcoming events yet — check back soon.' %></p>
-<% } else { %>
+<% } else if (events.length) { %>
   <div class="grid">
-    <% for (const e of events) { %>
-      <a class="event-card" href="/events/<%= e.id %>">
-        <% if (e.image_url) { %><img src="<%= e.image_url %>" alt="" loading="lazy"><% } else { %><div class="placeholder"><%= e.title.slice(0, 1) %></div><% } %>
-        <div class="body">
-          <h2><%= e.title %></h2>
-          <p class="muted"><%= format.dateTime(e.starts_at) %></p>
-          <p class="muted"><%= e.venue %></p>
-          <p class="price">
-            <% if (e.remaining <= 0) { %><span class="badge badge-soldout">Sold out</span>
-            <% } else { %>From <%= format.money(e.min_price ?? 0) %><% } %>
-          </p>
-        </div>
-      </a>
-    <% } %>
+    <% for (const e of events) { %><%- include('../partials/event-card', { e }) %><% } %>
   </div>
 <% } %>
 <%- include('../partials/footer') %>

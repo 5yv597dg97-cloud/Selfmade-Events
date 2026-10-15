@@ -11,6 +11,9 @@ import { createStripePayments } from './stripe-payments.js';
  *   getCheckout(sessionId) -> { paid, open, reference }   (open: outcome not decided yet)
  *   expireCheckout(sessionId)
  *   refund({ reference, amountCents }) -> { ok, error? }
+ *   startPlatformCheckout(opts) -> same results as startCheckout, for a payment to the platform itself
+ *     opts: { key, name, amountCents, buyerEmail, metadata, successUrl, cancelUrl, expiresAt }
+ *   refundPlatformCharge({ reference }) -> { ok, error? }
  *   parseWebhook(rawBody, signature) -> event   (throws if the signature is invalid)
  *   hostAccounts               { create, onboardingUrl, status, dashboardUrl } when requiresHostAccount
  */
@@ -27,6 +30,12 @@ export const mockPayments = {
   },
   async expireCheckout() {},
   async refund() {
+    return { ok: true };
+  },
+  async startPlatformCheckout() {
+    return { status: 'paid', reference: `mock_${crypto.randomBytes(8).toString('hex')}` };
+  },
+  async refundPlatformCharge() {
     return { ok: true };
   },
   parseWebhook() {

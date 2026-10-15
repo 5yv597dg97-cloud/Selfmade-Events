@@ -1,0 +1,126 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <div>
+    <h1>Your earnings</h1>
+    <p class="muted">What the site keeps from ticket sales and featured listings, <%= format.monthLabel(current.month) %> so far.</p>
+  </div>
+</div>
+<% if (provider !== 'stripe') { %>
+  <div class="flash flash-info">Payments are in <strong>demo mode</strong>: no real money is moving, so these figures come from test purchases.</div>
+<% } %>
+<% if (examples[0].net < 0) { %>
+  <div class="flash flash-error" role="alert">
+    Your fees don't cover Stripe's card fee, so <strong>you lose about <%= format.money(-examples[0].net, { free: false }) %> on every <%= format.money(examples[0].price) %> ticket</strong>.
+    Raise <code>BOOKING_FEE_PERCENT</code>, <code>BOOKING_FEE_FIXED_PENCE</code> or <code>PLATFORM_COMMISSION_PERCENT</code> in your hosting settings.
+  </div>
+<% } %>
+
+<div class="stats">
+  <div class="stat">
+    <p class="stat-label">Income this month</p>
+    <p class="stat-value"><%= format.money(current.income, { free: false }) %></p>
+    <p class="stat-sub">All time <%= format.money(allTime.income, { free: false }) %></p>
+  </div>
+  <div class="stat">
+    <p class="stat-label">Profit after card fees (est.)</p>
+    <p class="stat-value"><%= format.money(current.profit, { free: false }) %></p>
+    <p class="stat-sub">All time <%= format.money(allTime.profit, { free: false }) %></p>
+  </div>
+  <div class="stat">
+    <p class="stat-label">Ticket sales this month</p>
+    <p class="stat-value"><%= format.money(current.sales, { free: false }) %></p>
+    <p class="stat-sub">All time <%= format.money(allTime.sales, { free: false }) %></p>
+  </div>
+  <div class="stat">
+    <p class="stat-label">Tickets sold this month</p>
+    <p class="stat-value"><%= current.tickets.toLocaleString('en-GB') %></p>
+    <p class="stat-sub">All time <%= allTime.tickets.toLocaleString('en-GB') %></p>
+  </div>
+</div>
+
+<h2>By month</h2>
+<% if (!months.length) { %>
+  <p class="empty">No sales yet. Income appears here as soon as someone buys a paid ticket or a host features an event.</p>
+<% } else { %>
+  <div class="table-wrap">
+  <table class="numbers">
+    <thead><tr>
+      <th>Month</th><th>Orders</th><th>Tickets</th><th>Ticket sales</th>
+      <th>Booking fees</th><th>Commission</th><th>Featured</th><th>Income</th><th>Card fees (est.)</th><th>Profit (est.)</th>
+    </tr></thead>
+    <tbody>
+    <% for (const m of months) { %>
+      <tr>
+        <td><%= format.monthLabel(m.month) %></td>
+        <td><%= m.orders %></td>
+        <td><%= m.tickets %></td>
+        <td><%= format.money(m.sales, { free: false }) %></td>
+        <td><%= format.money(m.bookingFees, { free: false }) %></td>
+        <td><%= format.money(m.commission, { free: false }) %></td>
+        <td><%= format.money(m.featured, { free: false }) %></td>
+        <td><strong><%= format.money(m.income, { free: false }) %></strong></td>
+        <td>−<%= format.money(m.cardFees, { free: false }) %></td>
+        <td><strong><%= format.money(m.profit, { free: false }) %></strong></td>
+      </tr>
+    <% } %>
+    </tbody>
+  </table>
+  </div>
+<% } %>
+
+<% if (topEvents.length) { %>
+  <h2>Top events</h2>
+  <div class="table-wrap">
+  <table class="numbers">
+    <thead><tr><th>Event</th><th>Host</th><th>Orders</th><th>Ticket sales</th><th>Your fees</th></tr></thead>
+    <tbody>
+    <% for (const e of topEvents) { %>
+      <tr>
+        <td><a href="/events/<%= e.id %>"><%= e.title %></a><br><span class="muted small"><%= format.dateTime(e.starts_at) %></span></td>
+        <td><%= e.host_name %></td>
+        <td><%= e.orders %></td>
+        <td><%= format.money(e.sales, { free: false }) %></td>
+        <td><%= format.money(e.fees, { free: false }) %></td>
+      </tr>
+    <% } %>
+    </tbody>
+  </table>
+  </div>
+<% } %>
+
+<div class="columns-even">
+  <section class="card">
+    <h2>Your prices</h2>
+    <ul class="plain">
+      <li><strong>Booking fee</strong> (paid by buyers): <%= fees.bookingFeePercent %>% + <%= format.money(fees.bookingFeeFixedPence, { free: false }) %> per paid ticket</li>
+      <li><strong>Commission</strong> (from hosts' sales): <%= fees.commissionPercent %>%</li>
+      <li><strong>Featured listing</strong>: <%= fees.featuredDayPence ? `${format.money(fees.featuredDayPence)} a day` : 'off' %></li>
+    </ul>
+    <p class="muted small">Change these with the <code>BOOKING_FEE_PERCENT</code>, <code>BOOKING_FEE_FIXED_PENCE</code>, <code>PLATFORM_COMMISSION_PERCENT</code> and <code>FEATURED_PRICE_PER_DAY_PENCE</code> settings on your host (Render → Environment).</p>
+  </section>
+  <section class="card">
+    <h2>One ticket, who gets what</h2>
+    <div class="table-wrap flat">
+    <table class="numbers">
+      <thead><tr><th></th><% for (const x of examples) { %><th><%= format.money(x.price) %> ticket</th><% } %></tr></thead>
+      <tbody>
+        <tr><td>Buyer pays</td><% for (const x of examples) { %><td><%= format.money(x.buyerPays) %></td><% } %></tr>
+        <tr><td>Host gets</td><% for (const x of examples) { %><td><%= format.money(x.hostGets, { free: false }) %></td><% } %></tr>
+        <tr><td>You keep</td><% for (const x of examples) { %><td><%= format.money(x.platformFee, { free: false }) %></td><% } %></tr>
+        <tr><td>Stripe card fee (est.)</td><% for (const x of examples) { %><td>−<%= format.money(x.cardFee, { free: false }) %></td><% } %></tr>
+        <tr><td><strong>Your profit</strong></td><% for (const x of examples) { %><td><strong><%= format.money(x.net, { free: false }) %></strong></td><% } %></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="muted small">Card fees are estimated at Stripe's UK card rate (<%= cardFeeEstimate.percent %>% + <%= cardFeeEstimate.fixedPence %>p per payment); cards from abroad cost more. Stripe also charges for each host account it pays out to; see Stripe Connect pricing.</p>
+  </section>
+</div>
+
+<h2>Site at a glance</h2>
+<ul class="plain glance">
+  <% const plural = (n, word) => `${word}${n === 1 ? '' : 's'}`; %>
+  <li><strong><%= counts.live_events %></strong> live <%= plural(counts.live_events, 'event') %><% if (counts.featured_now) { %>, <%= counts.featured_now %> featured<% } %></li>
+  <li><strong><%= counts.hosts %></strong> <%= plural(counts.hosts, 'host') %><% if (provider === 'stripe') { %> (<%= counts.hosts_with_payouts %> can sell paid tickets)<% } %></li>
+  <li><strong><%= counts.buyers %></strong> buyer <%= plural(counts.buyers, 'account') %></li>
+</ul>
+<%- include('../partials/footer') %>

@@ -74,6 +74,31 @@ export function createStripePayments({ secretKey, webhookSecret, client = new St
       }
     },
 
+    /** A payment to the platform itself (e.g. a host featuring an event): no transfer, no application fee. */
+    async startPlatformCheckout({ key, name, amountCents, buyerEmail, metadata, successUrl, cancelUrl, expiresAt }) {
+      const session = await client.checkout.sessions.create({
+        mode: 'payment',
+        line_items: [{ quantity: 1, price_data: { currency: CURRENCY, unit_amount: amountCents, product_data: { name } } }],
+        customer_email: buyerEmail,
+        client_reference_id: key,
+        metadata,
+        payment_intent_data: { description: name, metadata },
+        success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: cancelUrl,
+        expires_at: Math.floor(expiresAt.getTime() / 1000),
+      }, { idempotencyKey: `checkout-${key}` });
+      return { status: 'redirect', url: session.url, sessionId: session.id };
+    },
+
+    async refundPlatformCharge({ reference }) {
+      try {
+        await client.refunds.create({ payment_intent: reference });
+        return { ok: true };
+      } catch (err) {
+        return { ok: false, error: err.message };
+      }
+    },
+
     parseWebhook(rawBody, signature) {
       if (!webhookSecret) throw new Error('STRIPE_WEBHOOK_SECRET is not configured');
       return client.webhooks.constructEvent(rawBody, signature, webhookSecret);

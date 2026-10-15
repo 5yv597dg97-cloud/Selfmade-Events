@@ -6,6 +6,9 @@
 <% if (needsPayouts) { %>
   <div class="flash flash-info">To sell paid tickets, <a href="/host/payments">set up payouts</a> so ticket money can reach your bank account. Free events work without it.</div>
 <% } %>
+<% if (featuredDayPence && events.some((e) => e.canFeature && !e.featured)) { %>
+  <div class="flash flash-info">Sell more tickets: <strong>feature an event</strong> to show it first on the homepage, from <%= format.money(featuredDayPence) %> a day. Use the Feature link next to a live event.</div>
+<% } %>
 <% if (!events.length) { %>
   <p class="empty">You haven't created any events yet. <a href="/host/events/new">Create your first event</a>.</p>
 <% } else { %>
@@ -17,12 +20,13 @@
       <tr>
         <td><a href="/events/<%= e.id %>"><%= e.title %></a><br><span class="muted small"><%= e.venue %></span></td>
         <td><%= format.dateTime(e.starts_at) %></td>
-        <td><span class="badge badge-<%= e.status %>"><%= e.status %></span></td>
+        <td><span class="badge badge-<%= e.status %>"><%= e.status %></span><% if (e.featured) { %><br><span class="badge badge-featured" title="Featured until <%= format.dateTime(e.featured_until) %>">Featured</span><% } %></td>
         <td><%= e.sold %> / <%= e.capacity %></td>
         <td><%= format.money(e.earnings_cents, { free: false }) %></td>
         <td><div class="actions">
           <% if (e.status !== 'cancelled') { %><a href="/host/events/<%= e.id %>/edit">Edit</a><% } %>
           <a href="/host/events/<%= e.id %>/attendees">Attendees</a>
+          <% if (e.canFeature) { %><a href="/host/events/<%= e.id %>/feature"><%= e.featured ? 'Extend feature' : 'Feature' %></a><% } %>
           <% if (e.status === 'draft') { %>
             <form method="post" action="/host/events/<%= e.id %>/publish" class="inline">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">

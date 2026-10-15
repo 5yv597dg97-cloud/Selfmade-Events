@@ -17,6 +17,7 @@ transaction(db, () => {
   const addUser = db.prepare('INSERT OR IGNORE INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)');
   addUser.run('Demo Host', 'host@example.com', hash, 'host');
   addUser.run('Demo Client', 'client@example.com', hash, 'client');
+  addUser.run('Site Owner', 'owner@example.com', hash, 'client'); // run with ADMIN_EMAILS=owner@example.com
   const hostId = db.prepare('SELECT id FROM users WHERE email = ?').get('host@example.com').id;
   if (db.prepare('SELECT COUNT(*) AS n FROM events WHERE host_id = ?').get(hostId).n > 0) return;
 
@@ -36,4 +37,4 @@ transaction(db, () => {
   }
 });
 
-console.log('Seeded. Log in as host@example.com or client@example.com with password "password123".');
+console.log('Seeded. Log in as host@example.com, client@example.com or owner@example.com with password "password123".');

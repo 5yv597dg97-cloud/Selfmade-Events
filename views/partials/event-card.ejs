@@ -1,0 +1,13 @@
+<a class="event-card<%= e.featured ? ' featured' : '' %>" href="/events/<%= e.id %>">
+  <% if (e.image_url) { %><img src="<%= e.image_url %>" alt="" loading="lazy"><% } else { %><div class="placeholder"><%= e.title.slice(0, 1) %></div><% } %>
+  <div class="body">
+    <% if (e.featured) { %><span class="badge badge-featured">Featured</span><% } %>
+    <h2><%= e.title %></h2>
+    <p class="muted"><%= format.dateTime(e.starts_at) %></p>
+    <p class="muted"><%= e.venue %></p>
+    <p class="price">
+      <% if (e.remaining <= 0) { %><span class="badge badge-soldout">Sold out</span>
+      <% } else { %>From <%= format.money(e.min_price ?? 0) %><% } %>
+    </p>
+  </div>
+</a>

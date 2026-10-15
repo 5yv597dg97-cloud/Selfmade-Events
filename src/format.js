@@ -56,3 +56,9 @@ export function parseCents(value) {
   if (!/^\d+(\.\d{1,2})?$/.test(s)) return NaN;
   return Math.round(Number(s) * 100);
 }
+
+/** "2026-10" -> "Oct 2026". */
+export function monthLabel(yyyyMm) {
+  const [y, m] = yyyyMm.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, 1)).toLocaleString(LOCALE, { timeZone: 'UTC', month: 'short', year: 'numeric' });
+}

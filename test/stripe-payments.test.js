@@ -110,13 +110,14 @@ test('production refuses to start without Stripe keys unless demo mode is explic
 });
 
 test('fee configuration from environment', () => {
-  assert.deepEqual(feeConfigFromEnv({}), { bookingFeePercent: 0, bookingFeeFixedPence: 0, commissionPercent: 0 });
+  assert.deepEqual(feeConfigFromEnv({}), { bookingFeePercent: 0, bookingFeeFixedPence: 0, commissionPercent: 0, featuredDayPence: 200 });
   assert.deepEqual(
-    feeConfigFromEnv({ BOOKING_FEE_PERCENT: '2.5', BOOKING_FEE_FIXED_PENCE: '49', PLATFORM_COMMISSION_PERCENT: '5' }),
-    { bookingFeePercent: 2.5, bookingFeeFixedPence: 49, commissionPercent: 5 },
+    feeConfigFromEnv({ BOOKING_FEE_PERCENT: '2.5', BOOKING_FEE_FIXED_PENCE: '49', PLATFORM_COMMISSION_PERCENT: '5', FEATURED_PRICE_PER_DAY_PENCE: '0' }),
+    { bookingFeePercent: 2.5, bookingFeeFixedPence: 49, commissionPercent: 5, featuredDayPence: 0 },
   );
   assert.throws(() => feeConfigFromEnv({ BOOKING_FEE_PERCENT: 'lots' }));
   assert.throws(() => feeConfigFromEnv({ BOOKING_FEE_FIXED_PENCE: '0.5' }));
+  assert.throws(() => feeConfigFromEnv({ FEATURED_PRICE_PER_DAY_PENCE: '10' }), /from 30/);
 });
 
 test('free tickets carry no booking fee', () => {
