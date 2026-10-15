@@ -8,6 +8,7 @@ import { mockPayments } from './payments.js';
 import { NO_FEES } from './fees.js';
 import { createOrders } from './orders.js';
 import { createPromotions } from './promotions.js';
+import { NO_ASSISTANT } from './assistant/index.js';
 import { SqliteSessionStore } from './session-store.js';
 import { loadUser, csrf, flash, adminEmailsFromEnv } from './middleware.js';
 import * as format from './format.js';
@@ -25,6 +26,7 @@ export function createApp({
   payments = mockPayments,
   fees = NO_FEES,
   adminEmails = adminEmailsFromEnv(),
+  assistant = NO_ASSISTANT,
   sweepIntervalMs = null,
   sessionSecret = process.env.SESSION_SECRET ?? crypto.randomBytes(32).toString('hex'),
 } = {}) {
@@ -37,14 +39,14 @@ export function createApp({
   app.locals.format = format;
   app.locals.paymentsProvider = payments.name;
 
-  const orders = createOrders({ db, payments });
-  const promotions = createPromotions({ db, payments });
+  const orders = createOrders({ db, payments, alert: assistant.alert });
+  const promotions = createPromotions({ db, payments, alert: assistant.alert });
   if (sweepIntervalMs) {
     setInterval(() => {
       orders.sweep().then(() => promotions.sweep()).catch((err) => console.error('Sweep failed:', err));
     }, sweepIntervalMs).unref();
   }
-  const ctx = { db, payments, fees, orders, promotions };
+  const ctx = { db, payments, fees, orders, promotions, assistant };
 
   app.get('/healthz', (req, res) => {
     db.prepare('SELECT 1').get();

@@ -14,7 +14,7 @@ export class SoldOutError extends Error {}
  * Every transition is conditional on the current status, so webhooks, redirects and the
  * background sweep can all report the same outcome safely, in any order.
  */
-export function createOrders({ db, payments }) {
+export function createOrders({ db, payments, alert = async () => {} }) {
   const reserveSeats = db.prepare('UPDATE ticket_types SET sold = sold + ? WHERE id = ? AND event_id = ? AND sold + ? <= capacity');
   const releaseSeats = db.prepare('UPDATE ticket_types SET sold = sold - ? WHERE id = ?');
   const insertOrder = db.prepare(`
@@ -77,6 +77,7 @@ export function createOrders({ db, payments }) {
       const result = await payments.refund({ reference, amountCents: order.total_cents });
       if (!result.ok) {
         console.error(`Order ${orderId}: automatic refund of ${reference} failed: ${result.error}`);
+        void alert(`A buyer paid for order #${orderId} after it could no longer be honoured, and the automatic refund failed (${result.error}). Refund payment ${reference} in Stripe.`);
         return order.status;
       }
     }

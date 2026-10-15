@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { requireAdmin } from '../middleware.js';
-import { CARD_FEE_ESTIMATE, exampleSale } from '../fees.js';
+import { CARD_FEE_ESTIMATE, cardFeeSql, cardFeeParams, exampleSale } from '../fees.js';
 
 /**
  * The site owner's earnings: what the platform keeps (booking fees, commission and
@@ -12,14 +12,13 @@ export default function adminRoutes({ db, payments, fees }) {
   router.use(requireAdmin);
 
   // Refunded payments still cost the card fee: Stripe keeps it when money is returned.
-  const cardFee = (column) => `CASE WHEN ${column} > 0 THEN CAST(ROUND(${column} * $pct / 100.0) AS INTEGER) + $fixed ELSE 0 END`;
   const orderMonths = db.prepare(`
     SELECT strftime('%Y-%m', created_at) AS month,
       SUM(status = 'paid') AS orders,
       SUM(CASE WHEN status = 'paid' THEN subtotal_cents ELSE 0 END) AS sales,
       SUM(CASE WHEN status = 'paid' THEN booking_fee_cents ELSE 0 END) AS booking_fees,
       SUM(CASE WHEN status = 'paid' THEN commission_cents ELSE 0 END) AS commission,
-      SUM(${cardFee('total_cents')}) AS card_fees
+      SUM(${cardFeeSql('total_cents')}) AS card_fees
     FROM orders WHERE status IN ('paid', 'refunded') GROUP BY month`);
   const ticketMonths = db.prepare(`
     SELECT strftime('%Y-%m', o.created_at) AS month, COUNT(*) AS tickets
@@ -27,7 +26,7 @@ export default function adminRoutes({ db, payments, fees }) {
   const promotionMonths = db.prepare(`
     SELECT strftime('%Y-%m', created_at) AS month,
       SUM(CASE WHEN status = 'paid' THEN amount_cents ELSE 0 END) AS featured,
-      SUM(${cardFee('amount_cents')}) AS card_fees
+      SUM(${cardFeeSql('amount_cents')}) AS card_fees
     FROM promotions WHERE status IN ('paid', 'refunded') GROUP BY month`);
   const topEvents = db.prepare(`
     SELECT e.id, e.title, e.starts_at, e.status, u.name AS host_name,
@@ -44,7 +43,6 @@ export default function adminRoutes({ db, payments, fees }) {
       (SELECT COUNT(DISTINCT event_id) FROM promotions WHERE status = 'paid' AND starts_at <= $now AND ends_at > $now) AS featured_now`);
 
   function monthlyTotals() {
-    const params = { pct: CARD_FEE_ESTIMATE.percent, fixed: CARD_FEE_ESTIMATE.fixedPence };
     const months = new Map();
     const row = (month) => {
       if (!months.has(month)) {
@@ -52,12 +50,12 @@ export default function adminRoutes({ db, payments, fees }) {
       }
       return months.get(month);
     };
-    for (const r of orderMonths.all(params)) {
+    for (const r of orderMonths.all(cardFeeParams)) {
       Object.assign(row(r.month), { orders: r.orders, sales: r.sales, bookingFees: r.booking_fees, commission: r.commission });
       row(r.month).cardFees += r.card_fees;
     }
     for (const r of ticketMonths.all()) row(r.month).tickets = r.tickets;
-    for (const r of promotionMonths.all(params)) {
+    for (const r of promotionMonths.all(cardFeeParams)) {
       row(r.month).featured = r.featured;
       row(r.month).cardFees += r.card_fees;
     }

@@ -89,6 +89,11 @@ const MIGRATIONS = [
    CREATE UNIQUE INDEX idx_promotions_checkout ON promotions(checkout_session_id);
    CREATE INDEX idx_promotions_event ON promotions(event_id, status, ends_at);
    CREATE INDEX idx_promotions_pending ON promotions(status, expires_at);`,
+  // 3: Small key/value store for the owner's Telegram assistant (e.g. when the last weekly report went out).
+  `CREATE TABLE assistant_state (
+     key   TEXT PRIMARY KEY,
+     value TEXT NOT NULL
+   );`,
 ];
 
 function migrate(db) {

@@ -37,6 +37,10 @@ export const NO_FEES = { bookingFeePercent: 0, bookingFeeFixedPence: 0, commissi
  */
 export const CARD_FEE_ESTIMATE = { percent: 1.5, fixedPence: 20 };
 
+/** SQL for the estimated card fee on a pence column; bind cardFeeParams ($pct, $fixed) with it. */
+export const cardFeeSql = (column) => `CASE WHEN ${column} > 0 THEN CAST(ROUND(${column} * $pct / 100.0) AS INTEGER) + $fixed ELSE 0 END`;
+export const cardFeeParams = { pct: CARD_FEE_ESTIMATE.percent, fixed: CARD_FEE_ESTIMATE.fixedPence };
+
 export function estimateCardFee(amountPence) {
   if (amountPence <= 0) return 0;
   return Math.round((amountPence * CARD_FEE_ESTIMATE.percent) / 100) + CARD_FEE_ESTIMATE.fixedPence;

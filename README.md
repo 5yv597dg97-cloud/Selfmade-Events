@@ -23,6 +23,7 @@ The [`edge-finder/`](edge-finder/) folder holds a separate, standalone tool for 
 **Site owner**
 - **Earnings** page: income this month and all time (booking fees, commission, featured listings), estimated Stripe card fees and profit, a month-by-month table, top events, and what one ticket earns everyone at your current prices
 - A warning on that page, and in the server log, if your fees don't cover Stripe's card fee
+- A private **business assistant on Telegram** (optional): ask it about sales, events and hosts; get a report every Monday; get alerts for failed refunds, payment disputes and risky-looking new events. See [Business assistant](#business-assistant-telegram)
 
 **Under the hood**
 - Overselling can't happen: seats are reserved with a conditional `UPDATE` inside a SQLite transaction before payment is taken, and are released if payment fails
@@ -65,6 +66,9 @@ Run the tests with `npm test`.
 | `PLATFORM_COMMISSION_PERCENT` | `0`     | % of ticket sales kept from the host's share    |
 | `FEATURED_PRICE_PER_DAY_PENCE` | `200`  | What hosts pay per day to feature an event; `0` turns featuring off |
 | `ADMIN_EMAILS`   | –                    | Comma-separated emails of site owners who can see the Earnings page |
+| `TELEGRAM_ASSISTANT_TOKEN` | –          | Bot token for your business assistant (a new bot, not edge-finder's) |
+| `TELEGRAM_ASSISTANT_CHAT_ID` | –        | Your Telegram chat ID; only this chat gets answers |
+| `ANTHROPIC_API_KEY` | –                 | Claude API key; turns on the assistant's answers, suggestions and event checks |
 | `APP_URL`        | Render URL           | Public URL used in Stripe redirects (set it when you add a custom domain) |
 | `PAYMENTS`       | –                    | `mock` allows production without Stripe (demo)  |
 
@@ -80,6 +84,26 @@ Stripe's card fee (1.5% + 20p for UK cards, up to 3.25% + 20p for cards from abr
 **See your earnings:** sign up on the site with your own email, then set `ADMIN_EMAILS` to that email in Render. An **Earnings** link appears in the menu. Sign up *before* setting the variable: accounts aren't email-verified, so whoever registers an address first owns it.
 
 Ideas for more income later: a commission on top of the booking fee, monthly plans for busy hosts, or paid add-ons such as email campaigns to past buyers.
+
+## Business assistant (Telegram)
+
+A private assistant for you, the owner, in a Telegram chat. Customers never see it. It:
+
+- **Answers questions** about the business from live figures: "How did we do this week?", "Which events are selling slowest?", "Which hosts haven't published anything?", "Compare this month with last month". It remembers the conversation for follow-ups (send `/new` to start over) and can only read data, never change anything.
+- **Sends a weekly report** every Monday from 8am UK time: income, estimated profit, ticket sales, top events, what's coming up, what needs attention, and a few suggestions. Send `/report` to get it any time.
+- **Alerts you straight away** when an automatic refund fails, a buyer disputes a payment, or a newly published (or edited) event looks like a scam or breaks the rules.
+
+### Setting it up
+
+1. **Create a new bot.** In Telegram, message [@BotFather](https://t.me/BotFather), send `/newbot`, and follow the steps. Copy the token it gives you. Use a new bot, not the edge-finder one: two programs reading the same bot's messages take each other's.
+2. **Get an API key** at [console.anthropic.com](https://console.anthropic.com) (Settings → API keys) and add some credit. Expect a few pounds a month at most.
+3. **In Render**, open the service's **Environment** and set `TELEGRAM_ASSISTANT_TOKEN` (the bot token) and `ANTHROPIC_API_KEY`. For `TELEGRAM_ASSISTANT_CHAT_ID`, use the same number as edge-finder's `TELEGRAM_CHAT_ID`; or leave it blank, message your new bot, and it replies with your chat ID.
+4. **In Stripe**, add the events `charge.dispute.created` and `charge.dispute.closed` to your webhook endpoint (Developers → Webhooks), so disputes reach you.
+5. Message your bot `/help`.
+
+Without `ANTHROPIC_API_KEY`, the bot still sends alerts about refunds and disputes and the weekly figures; questions, suggestions and event checks need the key.
+
+**What it shares with Claude:** business totals, event listings, and hosts' names (plus their emails when you ask about hosts). It never sends buyers' details, passwords or login sessions. Its data tools are fixed, read-only queries; the model never writes its own database queries.
 
 ## Payments
 
@@ -100,7 +124,7 @@ Safety nets: payments that land after a hold expired, or after the event was can
 1. Create a Stripe account at [stripe.com](https://stripe.com) (UK). Use **test mode** first.
 2. Enable **Connect** (Dashboard → Connect → Get started) and choose the platform/marketplace option.
 3. Copy the secret key (Developers → API keys) into `STRIPE_SECRET_KEY` on Render.
-4. Add a webhook endpoint (Developers → Webhooks) at `https://<your-site>/stripe/webhook` with the events `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed` and `checkout.session.expired`. Put its signing secret into `STRIPE_WEBHOOK_SECRET`. The same endpoint confirms featured-listing payments.
+4. Add a webhook endpoint (Developers → Webhooks) at `https://<your-site>/stripe/webhook` with the events `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed` and `checkout.session.expired` (plus `charge.dispute.created` and `charge.dispute.closed` if you use the [business assistant](#business-assistant-telegram)). Put its signing secret into `STRIPE_WEBHOOK_SECRET`. The same endpoint confirms featured-listing payments.
 5. Test with card `4242 4242 4242 4242`, any future date and any CVC. When you're ready, repeat steps 3–4 with live keys.
 
 For local testing, the [Stripe CLI](https://stripe.com/docs/stripe-cli) can forward webhooks: `stripe listen --forward-to localhost:3000/stripe/webhook`.
@@ -148,6 +172,11 @@ src/
     webhooks.js   Stripe webhook
     host.js       Host dashboard, event CRUD, attendees, check-in, cancel, featuring
     admin.js      Site owner's Earnings page
+  assistant/
+    index.js      Owner's Telegram assistant: chat, weekly report, alerts
+    brain.js      Claude requests: answers, report suggestions, event checks
+    data.js       Fixed read-only business queries (the assistant's tools)
+    telegram.js   Telegram Bot API client (long polling)
 views/            EJS templates
 public/           CSS + small client scripts
 test/             node:test + supertest integration tests

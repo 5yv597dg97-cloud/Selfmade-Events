@@ -11,7 +11,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * featured period starts) or failed; a payment that can't be honoured (the event was
  * cancelled or has started meanwhile) is refunded. Buying again extends the period.
  */
-export function createPromotions({ db, payments }) {
+export function createPromotions({ db, payments, alert = async () => {} }) {
   const insert = db.prepare(`
     INSERT INTO promotions (event_id, host_id, days, amount_cents, status, expires_at)
     VALUES (?, ?, ?, ?, 'pending', ?)`);
@@ -81,6 +81,7 @@ export function createPromotions({ db, payments }) {
       const result = await payments.refundPlatformCharge({ reference });
       if (!result.ok) {
         console.error(`Promotion ${id}: automatic refund of ${reference} failed: ${result.error}`);
+        void alert(`A host paid to feature an event that can no longer be featured, and the automatic refund failed (${result.error}). Refund payment ${reference} in Stripe.`);
         return promo.status;
       }
     }

@@ -68,7 +68,7 @@ function formTypesFromRows(rows) {
   return rows.map((t) => ({ id: t.id, name: t.name, price: (t.price_cents / 100).toFixed(2), capacity: String(t.capacity), sold: t.sold }));
 }
 
-export default function hostRoutes({ db, payments, fees, promotions }) {
+export default function hostRoutes({ db, payments, fees, promotions, assistant }) {
   const router = Router();
   router.use(requireHost);
 
@@ -259,6 +259,7 @@ export default function hostRoutes({ db, payments, fees, promotions }) {
       return res.redirect('/host/payments');
     } else {
       setStatus.run('published', id);
+      void assistant.eventChanged(id);
       req.flash('success', 'Event published!');
     }
     res.redirect('/host');
@@ -288,6 +289,7 @@ export default function hostRoutes({ db, payments, fees, promotions }) {
       updateEvent.run(values.title, values.description, values.venue, startsAtIso, values.image_url || null, e.id);
       saveTypes(e.id, types);
     });
+    if (e.status === 'published') void assistant.eventChanged(e.id);
     req.flash('success', 'Event updated.');
     res.redirect('/host');
   });
@@ -300,6 +302,7 @@ export default function hostRoutes({ db, payments, fees, promotions }) {
       return res.redirect('/host/payments');
     } else {
       setStatus.run('published', req.event.id);
+      void assistant.eventChanged(req.event.id);
       req.flash('success', `"${req.event.title}" is now live.`);
     }
     res.redirect('/host');
@@ -323,8 +326,12 @@ export default function hostRoutes({ db, payments, fees, promotions }) {
         if (result.ok) refundOrder.run(order.id);
         else failed++;
       }
-      if (failed) req.flash('error', `Event cancelled, but ${failed} refund(s) failed. Please refund those buyers manually.`);
-      else req.flash('success', `"${e.title}" was cancelled and all buyers were refunded.`);
+      if (failed) {
+        req.flash('error', `Event cancelled, but ${failed} refund(s) failed. Please refund those buyers manually.`);
+        void assistant.alert(`${req.user.name} cancelled "${e.title}", but ${failed} refund(s) failed. Those buyers still need refunding in Stripe.`);
+      } else {
+        req.flash('success', `"${e.title}" was cancelled and all buyers were refunded.`);
+      }
       res.redirect('/host');
     } catch (err) {
       next(err);

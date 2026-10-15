@@ -4,9 +4,10 @@ import express, { Router } from 'express';
  * Stripe webhook: the source of truth for whether a checkout was paid.
  * Configure an endpoint for /stripe/webhook in the Stripe dashboard with these events:
  *   checkout.session.completed, checkout.session.async_payment_succeeded,
- *   checkout.session.async_payment_failed, checkout.session.expired
+ *   checkout.session.async_payment_failed, checkout.session.expired,
+ *   and (for the owner's Telegram alerts) charge.dispute.created, charge.dispute.closed
  */
-export default function webhookRoutes({ payments, orders, promotions }) {
+export default function webhookRoutes({ payments, orders, promotions, assistant }) {
   const router = Router();
 
   router.post('/stripe/webhook', express.raw({ type: 'application/json', limit: '1mb' }), async (req, res) => {
@@ -15,6 +16,11 @@ export default function webhookRoutes({ payments, orders, promotions }) {
       event = payments.parseWebhook(req.body, req.get('stripe-signature'));
     } catch (err) {
       return res.status(400).send(`Webhook signature verification failed: ${err.message}`);
+    }
+
+    if (event.type === 'charge.dispute.created' || event.type === 'charge.dispute.closed') {
+      void assistant.paymentDisputed(event);
+      return res.json({ received: true });
     }
 
     try {

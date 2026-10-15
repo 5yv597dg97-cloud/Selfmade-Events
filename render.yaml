@@ -48,3 +48,13 @@ services:
       # site with this email first: accounts aren't email-verified.
       - key: ADMIN_EMAILS
         sync: false
+      # Your private business assistant on Telegram (optional; see README).
+      # A NEW bot from @BotFather - not the edge-finder bot.
+      - key: TELEGRAM_ASSISTANT_TOKEN
+        sync: false
+      # Your Telegram chat ID (the bot tells you it if you message it before this is set).
+      - key: TELEGRAM_ASSISTANT_CHAT_ID
+        sync: false
+      # From console.anthropic.com. Without it the bot still sends alerts and weekly figures.
+      - key: ANTHROPIC_API_KEY
+        sync: false
