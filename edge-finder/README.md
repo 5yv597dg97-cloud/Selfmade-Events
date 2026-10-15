@@ -143,11 +143,11 @@ They settle automatically on the exact final score. Turning them off: `EDGE_SCOR
 Up to 2 a week, the bot sends a **trixie**: 3 selections from different matches at one bookmaker, staked as 4 bets (3 doubles + 1 treble) at £0.50 a line, £2 in all. Any 2 winners pay something back.
 
 > 🎯 **Trixie** with Paddy Power
-> 1. 🎾 **Jannik Sinner to win** @ 1.18 (min 1.16) · 88%
+> 1. 🎾 **Jannik Sinner to win** @ 1.18 (min 1.14) · 88%
 > 2. ⚽ **Liverpool to win** @ 1.27 (min 1.24) · 81%
 > 3. 🥊 **Islam Makhachev to win** @ 1.28 (min 1.27) · 79%
 > All 3 win (56%) · 2 of 3 win (36%) · 0 or 1 win (8%)
-> Returns something 92% of the time · edge +5%
+> Returns something 92% of the time · edge +6%
 
 - **Each leg is a 75%+ chance priced at least fair**, and the trixie as a whole at least 2% above fair. Good-value legs make every line good value.
 - **They are rare**, because three such legs have to line up at the same bookmaker.
