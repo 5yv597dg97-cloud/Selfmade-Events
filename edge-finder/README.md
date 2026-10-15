@@ -187,6 +187,9 @@ Using it as a filter on value bets also made results worse. So it is **shown for
 
 ### Bookmakers
 
+**The live bot uses Paddy Power only** (set in `.github/workflows/edge-finder.yml`). To add bookmakers later, add a repository variable `EDGE_BOOKS` on GitHub (*Settings → Secrets and variables → Actions → Variables*), e.g. `paddypower,betfair_sb_uk`. More bookmakers mean more picks, since each one is another chance of a generous price.
+
+
 Picks come from Paddy Power, Betfair Sportsbook, Coral, Ladbrokes and Betway. Up to 10 bookmakers (including Pinnacle and the Betfair Exchange) cost the same single credit per scan, so there's room for 3 more at no cost. Paddy Power and Betfair Sportsbook are one company (Flutter), as are Coral and Ladbrokes (Entain), so a restriction at one can follow you to its sister brand. Betfred isn't covered by The Odds API, so it can't be scanned. If a bookmaker never appears in the odds data, the bot tells you once.
 
 ### Football

@@ -67,6 +67,8 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           EDGE_BANKROLL: ${{ vars.EDGE_BANKROLL || '100' }}
+          # Bookmakers you can bet with. Add more (comma-separated keys) as a repository variable.
+          EDGE_BOOKS: ${{ vars.EDGE_BOOKS || 'paddypower' }}
           MODE: ${{ inputs.mode || 'scan' }}
           SPORTS: ${{ inputs.sports }}
         run: |
