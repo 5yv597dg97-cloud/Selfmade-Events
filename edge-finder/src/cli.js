@@ -11,6 +11,8 @@ import { runOnce, linkChat, HELP as BOT_HELP } from './run.js';
 import { findDoubles, fractional } from './doubles.js';
 import { findScorelineDoubles } from './scorelines.js';
 import { previewMatches, previewText } from './preview.js';
+import { loadHistory, seasonCode, LEAGUES } from './history.js';
+import { backtest } from './backtest.js';
 import { gbp, pct, when, selection } from './format.js';
 
 const LAST_SCAN = '.last-scan.json';
@@ -29,6 +31,7 @@ Usage: npm run edge -- <command> [options]
   report               Profit, ROI, and closing line value
   sports               List sport keys your API key can query
   preview              Every match today with chances, best prices and likeliest scores (--sports, --telegram)
+  backtest             Test the results-based model on past seasons (--telegram to send the summary)
   run                  The scheduled job: Telegram taps/commands, settle, scan, send picks
   telegram-setup       Show your Telegram chat ID (message your bot first)
 
@@ -112,6 +115,56 @@ async function main() {
       for (const m of messages) await bot.send(m);
     }
     for (const m of messages) console.log(m.replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'), '\n');
+    return;
+  }
+
+  if (command === 'backtest') {
+    const seasons = [3, 2, 1, 0].map((b) => seasonCode(now.getTime(), b));
+    const testSeasons = seasons.slice(1, 3); // the last two complete seasons
+    console.log(`Loading ${Object.keys(LEAGUES).length} leagues, seasons ${seasons.join(', ')}…`);
+    const matches = (await loadHistory({ seasons, now: now.getTime(), log: console.log }))
+      .filter((m) => m.season !== seasons[3]);
+    if (!matches.length) throw new Error('No historical data could be downloaded from football-data.co.uk');
+    console.log(`${matches.length} matches loaded. Testing on ${testSeasons.join(' and ')}.\n`);
+    const lines = [];
+    const f = (x) => x.toFixed(4);
+    const money = (b) => `${b.bets} bets, won ${pct(b.winRate, 0)}, ROI ${b.roi >= 0 ? '+' : ''}${pct(b.roi)}`;
+    let best = null;
+    for (const halfLifeDays of [90, 180, 365]) {
+      for (const blend of [0.1, 0.25]) {
+        const r = backtest(matches, { testSeasons, halfLifeDays, blend });
+        const gain = r.accuracy.market - r.accuracy.blend;
+        if (!best || gain > best.gain) best = { gain, halfLifeDays, blend, r };
+        console.log(`half-life ${halfLifeDays}d, blend ${blend}: log loss model ${f(r.accuracy.model)} · market ${f(r.accuracy.market)} · blend ${f(r.accuracy.blend)} (${r.accuracy.matches} matches)`);
+      }
+    }
+    const { r, halfLifeDays, blend, gain } = best;
+    lines.push(`<b>Stats model backtest</b> (${r.accuracy.matches} matches, ${testSeasons.join(' & ')} seasons, top European leagues)`);
+    lines.push('');
+    lines.push(`<b>Accuracy</b> (log loss, lower is better)`);
+    lines.push(`Market (Pinnacle): ${f(r.accuracy.market)}`);
+    lines.push(`Stats model alone: ${f(r.accuracy.model)}`);
+    lines.push(`Market + ${blend * 100}% model: ${f(r.accuracy.blend)} ${gain > 0.0005 ? '✅ model adds information' : gain > 0 ? '➖ tiny improvement' : '❌ no improvement'}`);
+    lines.push('');
+    lines.push(`<b>Value bets</b> (1 unit each at Bet365/William Hill, half-life ${halfLifeDays} days)`);
+    lines.push(`All value bets: ${money(r.bets.all)}`);
+    lines.push(`… model agrees: ${money(r.bets.allAgree)}`);
+    lines.push(`… model disagrees: ${money(r.bets.allDisagree)}`);
+    lines.push(`75%+ value bets: ${money(r.bets.safe)}`);
+    lines.push(`… model agrees: ${money(r.bets.safeAgree)}`);
+    lines.push(`… model disagrees: ${money(r.bets.safeDisagree)}`);
+    lines.push(`Model alone (5%+ edge by its own numbers): ${money(r.bets.modelOnly)}`);
+    lines.push('');
+    lines.push('By league (log loss, market → blend):');
+    for (const [k, x] of Object.entries(r.byLeague)) lines.push(`${LEAGUES[k] ?? k}: ${f(x.market)} → ${f(x.blend)} (${x.matches})`);
+    const text = lines.join('\n');
+    console.log(`\n${text.replace(/<[^>]+>/g, '')}`);
+    if (flags.telegram) {
+      const store = openStore(cfg.db);
+      const chatId = cfg.telegramChatId || store.getMeta('chat_id');
+      store.close();
+      if (cfg.telegramToken && chatId) await telegram({ token: cfg.telegramToken, chatId }).send(text);
+    }
     return;
   }
 

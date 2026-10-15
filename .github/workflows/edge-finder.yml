@@ -7,9 +7,9 @@ on:
   workflow_dispatch: # "Run workflow" button for a run on demand
     inputs:
       mode:
-        description: 'scan = the normal run; preview = every match today sent to Telegram'
+        description: 'scan = the normal run; preview = every match today sent to Telegram; backtest = test the stats model on past seasons'
         type: choice
-        options: [scan, preview]
+        options: [scan, preview, backtest]
         default: scan
       sports:
         description: 'For preview: competitions, e.g. soccer_uefa_champs_league or soccer_epl,soccer_spain_la_liga'
@@ -70,7 +70,9 @@ jobs:
           MODE: ${{ inputs.mode || 'scan' }}
           SPORTS: ${{ inputs.sports }}
         run: |
-          if [ "$MODE" = preview ]; then
+          if [ "$MODE" = backtest ]; then
+            node --disable-warning=ExperimentalWarning src/cli.js backtest --telegram
+          elif [ "$MODE" = preview ]; then
             node --disable-warning=ExperimentalWarning src/cli.js preview --telegram --sports "$SPORTS"
           else
             node --disable-warning=ExperimentalWarning src/cli.js run
