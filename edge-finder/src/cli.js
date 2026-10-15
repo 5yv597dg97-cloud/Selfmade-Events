@@ -12,7 +12,7 @@ import { findDoubles, fractional } from './doubles.js';
 import { findScorelineDoubles } from './scorelines.js';
 import { previewMatches, previewText } from './preview.js';
 import { loadHistory, seasonCode, LEAGUES } from './history.js';
-import { backtest } from './backtest.js';
+import { backtest, trixieBacktest } from './backtest.js';
 import { ratingsFor } from './statsview.js';
 import { gbp, pct, when, selection } from './format.js';
 
@@ -32,6 +32,7 @@ Usage: npm run edge -- <command> [options]
   report               Profit, ROI, and closing line value
   sports               List sport keys your API key can query
   preview              Every match today with chances, best prices and likeliest scores (--sports, --telegram)
+  trixie-test          Replay a trixie a week over past seasons (--telegram to send the summary)
   backtest             Test the results-based model on past seasons (--telegram to send the summary)
   run                  The scheduled job: Telegram taps/commands, settle, scan, send picks
   telegram-setup       Show your Telegram chat ID (message your bot first)
@@ -122,6 +123,43 @@ async function main() {
       for (const m of messages) await bot.send(m);
     }
     for (const m of messages) console.log(m.replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'), '\n');
+    return;
+  }
+
+  if (command === 'trixie-test') {
+    const seasons = [3, 2, 1].map((b) => seasonCode(now.getTime(), b));
+    const matches = await loadHistory({ seasons, now: now.getTime(), log: console.log });
+    if (!matches.length) throw new Error('No historical data could be downloaded from football-data.co.uk');
+    const r = trixieBacktest(matches, { seasons });
+    const units = (x) => `${x >= 0 ? '+' : '−'}£${Math.abs(x * 0.5).toFixed(2)}`; // £0.50 a line
+    const block = (title, s) => [
+      `<b>${title}</b>`,
+      `${s.trixies} trixies (£${(s.trixies * 2).toFixed(0)} staked)`,
+      `All 3 won: ${s.allThree} (${pct(s.allThree / s.trixies, 0)}) · paid something: ${s.returned} (${pct(s.returned / s.trixies, 0)})`,
+      `Profit ${units(s.profit)} · ROI ${s.roi >= 0 ? '+' : ''}${pct(s.roi)} · longest run with nothing back: ${s.worstRun} weeks · worst drop ${units(s.low)}`,
+    ].join('\n');
+    const lines = [
+      `<b>Trixie test</b>: ${r.weeks} weeks, ${matches.length} real matches, 10 European leagues, seasons ${seasons.join(', ')}. £0.50 a line (£2 a trixie). Each leg is a match favourite by Pinnacle's price.`,
+      '',
+      `The week's single biggest favourite failed to win in ${r.favouriteFailed} of ${r.weeks} weeks (${pct(r.favouriteFailed / r.weeks, 0)}).`,
+      '',
+      block('1. The 3 biggest favourites every week, Bet365 prices', r.strongest),
+      '',
+      block('2. The same, at the best price any bookmaker offered', r.strongestBest),
+      '',
+      block('3. System rules: 75%+ legs priced at least fair, trixie 2%+ value', r.value),
+      '',
+      'Weeks that went wrong (strategy 1):',
+      ...r.strongest.examples,
+    ];
+    const text = lines.join('\n');
+    console.log(text.replace(/<[^>]+>/g, ''));
+    if (flags.telegram) {
+      const store = openStore(cfg.db);
+      const chatId = cfg.telegramChatId || store.getMeta('chat_id');
+      store.close();
+      if (cfg.telegramToken && chatId) await telegram({ token: cfg.telegramToken, chatId }).send(text);
+    }
     return;
   }
 

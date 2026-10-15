@@ -82,3 +82,25 @@ test('backtest runs end to end on simulated matches with odds', () => {
   assert.ok(r.bets.all.bets > 0);
   assert.equal(r.bets.allAgree.bets + r.bets.allDisagree.bets, r.bets.all.bets);
 });
+
+import { trixieBacktest } from '../src/backtest.js';
+
+test('trixie backtest replays a trixie a week from the biggest favourites', () => {
+  const matches = [];
+  const monday = Date.parse('2025-09-01T15:00:00Z');
+  for (let w = 0; w < 4; w++) {
+    for (let k = 0; k < 4; k++) {
+      // Favourites at 80%; in week 2 the first one loses.
+      const lose = w === 2 && k === 0;
+      matches.push({ season: '2526', date: monday + w * 7 * 864e5 + k * 864e5, home: `H${k}`, away: `A${k}`,
+        hg: lose ? 0 : 2, ag: lose ? 1 : 0, odds: { pinnacle: [1.2 + k * 0.05, 7, 13], bet365: [1.22 + k * 0.05, 6.5, 12], max: [1.25 + k * 0.05, 7.5, 14] } });
+    }
+  }
+  const r = trixieBacktest(matches, { seasons: ['2526'] });
+  assert.equal(r.weeks, 4);
+  assert.equal(r.strongest.trixies, 4);
+  assert.equal(r.strongest.allThree, 3);
+  assert.equal(r.strongest.returned, 4, 'two of three still pays');
+  assert.equal(r.favouriteFailed, 1);
+  assert.ok(r.strongestBest.profit > r.strongest.profit, 'better prices, more profit');
+});
