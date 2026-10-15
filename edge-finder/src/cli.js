@@ -9,6 +9,7 @@ import { loadEvents as fetchEvents, settleFinished } from './events.js';
 import { telegram } from './telegram.js';
 import { runOnce, linkChat, HELP as BOT_HELP } from './run.js';
 import { findDoubles, fractional } from './doubles.js';
+import { findBankerTrixie } from './trixie.js';
 import { findScorelineDoubles } from './scorelines.js';
 import { previewMatches, previewText } from './preview.js';
 import { loadHistory, seasonCode, LEAGUES } from './history.js';
@@ -255,6 +256,11 @@ async function main() {
         console.log(`[${d.id}] ${d.odds} (${fractional(d.odds)}) with ${d.bookTitle}: wins about 1 in ${Math.round(1 / d.fairProb)}, edge +${pct(d.ev, 0)}`);
         for (const l of d.legs) console.log(`    ${selection(l)} @ ${l.odds}  ·  ${l.home} v ${l.away}  ·  ${when(l.commenceTime)}`);
       }
+    }
+    const banker = live.paused || !cfg.banker || !cfg.books.length ? null : findBankerTrixie(events, live, now.getTime());
+    if (banker) {
+      console.log(`\nBanker trixie with ${banker.bookTitle} (£${banker.unit} × 4): all 3 win ${pct(banker.pAll, 0)}, something back ${pct(banker.pAll + banker.pTwo, 0)}, value ${pct(banker.ev)}`);
+      for (const l of banker.legs) console.log(`    ${selection(l)} @ ${l.odds}  ·  ${pct(l.fairProb, 0)}  ·  ${when(l.commenceTime)}`);
     }
     if (scorelines.length) {
       console.log(`\nScoreline doubles (bet only if your bookmaker offers at least these prices)\n`);

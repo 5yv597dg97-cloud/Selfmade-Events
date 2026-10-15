@@ -76,3 +76,42 @@ export function trixieOutcome({ legs, stake }) {
   const pnl = Math.round((unit * ret - stake) * 100) / 100;
   return { status: pnl > 0 ? 'won' : ret === 0 ? 'lost' : 'part', pnl };
 }
+
+/**
+ * The weekly "banker trixie": the three biggest football favourites starting
+ * within the window, at whichever of your bookmakers prices them best. Not a
+ * value bet: a backtest over 103 weeks found it paid something back 96% of
+ * weeks and roughly broke even.
+ */
+export function findBankerTrixie(events, cfg, now = Date.now()) {
+  const soon = events.filter((e) => e.sport_key?.startsWith('soccer_')
+    && Date.parse(e.commence_time) - now <= cfg.bankerWindowHours * 3600e3);
+  let best = null;
+  for (const book of cfg.books) {
+    const prices = scan(soon, {
+      ...cfg, books: [book], minProb: 0, minEdge: -1, minOdds: 1.01, maxOdds: 1000, onePerEvent: false,
+    }, now).filter((l) => !l.suspicious && l.outcome !== 'Draw');
+    // Each match's favourite, then the three strongest.
+    const fav = new Map();
+    for (const l of prices) if (!fav.has(l.eventId) || l.fairProb > fav.get(l.eventId).fairProb) fav.set(l.eventId, l);
+    const trio = [...fav.values()].sort((a, b) => b.fairProb - a.fairProb).slice(0, 3);
+    if (trio.length < 3) continue;
+    const stats = trixieStats(trio);
+    if (!best || stats.ev > best.ev) best = { book, trio, ...stats };
+  }
+  if (!best) return null;
+  const trio = best.trio.sort((x, y) => x.commenceTime.localeCompare(y.commenceTime));
+  return {
+    kind: 'trixie', banker: true,
+    id: `b${createHash('sha1').update(trio.map((l) => l.id).join('|')).digest('hex').slice(0, 7)}`,
+    book: best.book, bookTitle: trio[0].bookTitle,
+    legs: trio.map((l) => ({
+      id: l.id, eventId: l.eventId, sport: l.sport, league: l.league, commenceTime: l.commenceTime,
+      home: l.home, away: l.away, market: l.market, outcome: l.outcome, odds: l.odds, fairProb: l.fairProb,
+    })),
+    pAll: best.pAll, pTwo: best.pTwo, pNothing: best.pNothing, returnAll: best.returnAll, returnTwo: best.returnTwo, ev: best.ev,
+    odds: best.returnAll / 4, fairProb: best.pAll,
+    unit: cfg.bankerUnitStake, stake: Math.round(cfg.bankerUnitStake * 4 * 100) / 100,
+    commenceTime: trio[0].commenceTime,
+  };
+}

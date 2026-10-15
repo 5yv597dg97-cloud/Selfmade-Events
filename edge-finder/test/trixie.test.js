@@ -46,3 +46,18 @@ test('settling a trixie', () => {
   assert.deepEqual(trixieOutcome({ stake, legs: legs(['won', 'won', 'lost']) }), { status: 'part', pnl: -1.22 });
   assert.equal(trixieOutcome({ stake, legs: legs(['won', 'lost', 'void']) }).status, 'part'); // the 1.2 double pays as a single
 });
+
+import { findBankerTrixie } from '../src/trixie.js';
+
+test('banker trixie: the three biggest football favourites at the best-priced bookmaker', () => {
+  const friday = Date.parse('2026-10-16T08:00:00Z');
+  const cfg = loadConfig({}, { 'max-stale-minutes': 1e6 });
+  const b = findBankerTrixie(events, cfg, friday);
+  assert.equal(b.book, 'paddypower');
+  assert.deepEqual(b.legs.map((l) => l.outcome), ['Liverpool', 'Manchester City', 'Arsenal']);
+  assert.ok(b.legs.every((l) => l.sport.startsWith('soccer_')), 'football only');
+  assert.equal(b.stake, 2);
+  assert.ok(b.pAll > 0.4 && b.pAll + b.pTwo > 0.8); // Arsenal are only 68% here; real weekends usually have stronger favourites
+  // Only matches within 72 hours count.
+  assert.equal(findBankerTrixie(events, { ...cfg, bankerWindowHours: 24 }, friday), null);
+});

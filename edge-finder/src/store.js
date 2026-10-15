@@ -107,7 +107,7 @@ export function openStore(path) {
     /** Doubles sent to you in the 7 days before `now`. */
     doublesSentSince(since, kind = 'double') {
       return db.prepare('SELECT data FROM picks WHERE sent_at >= ?').all(since.toISOString())
-        .filter((r) => JSON.parse(r.data).kind === kind).length;
+        .filter((r) => { const d = JSON.parse(r.data); return d.kind === kind && !d.banker; }).length;
     },
     pick(id) {
       const row = db.prepare('SELECT * FROM picks WHERE id = ?').get(id);

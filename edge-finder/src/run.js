@@ -5,10 +5,10 @@ import { loadEvents, settleFinished } from './events.js';
 import { report, doublesReport } from './store.js';
 import { findDoubles, fractional } from './doubles.js';
 import { findScorelineDoubles } from './scorelines.js';
-import { findTrixies, trixieOutcome } from './trixie.js';
+import { findTrixies, findBankerTrixie, trixieOutcome } from './trixie.js';
 import { manualResult, doubleOutcome } from './settle.js';
 import { esc } from './telegram.js';
-import { money, pct, when, selection, ukDate, icon } from './format.js';
+import { money, pct, when, selection, ukDate, ukWeekday, icon } from './format.js';
 
 
 export const HELP = `<b>Commands</b>
@@ -68,6 +68,20 @@ export function trixieMessage(t) {
   return lines.join('\n');
 }
 
+export function bankerMessage(t) {
+  return [
+    `🏦 <b>Banker trixie</b> for the weekend with ${esc(t.bookTitle)}: the 3 biggest football favourites`,
+    ...t.legs.map((l, i) => `${i + 1}. ⚽ <b>${esc(selection(l))}</b> @ ${l.odds} · ${pct(l.fairProb, 0)} · ${esc(l.home)} v ${esc(l.away)} · ${when(l.commenceTime)}`),
+    '',
+    `Stake <b>${money(t.unit)} × 4 = ${money(t.stake)}</b> (choose Trixie on the bet slip)`,
+    `All 3 win (${pct(t.pAll, 0)}): back ${money(t.unit * t.returnAll)}, profit ${money(t.unit * t.returnAll - t.stake)}`,
+    `2 of 3 win (${pct(t.pTwo, 0)}): back ${money(t.unit * Math.min(...t.returnTwo))}–${money(t.unit * Math.max(...t.returnTwo))}`,
+    `0 or 1 win (${pct(t.pNothing, 0)}): nothing back`,
+    `Value: ${t.ev >= 0 ? '+' : ''}${pct(t.ev)} against fair prices.`,
+    `<i>Over 103 past weeks this paid something back 96% of the time and roughly broke even: steady entertainment, not a money-maker. Not counted in your win rate.</i> Pick <code>${t.id}</code>`,
+  ].join('\n');
+}
+
 function reportText(store, cfg) {
   const r = report(store.all());
   const bank = store.bankroll(cfg.bankroll);
@@ -88,7 +102,7 @@ function placeBet(store, pick, { odds = pick.odds, stake = pick.stake, now }) {
   store.setPickStatus(pick.id, 'placed');
   if (pick.kind === 'trixie') {
     const id = store.addDouble(pick, { now });
-    return `✅ Logged trixie D${id}: ${money(pick.unit)} × 4 = ${money(pick.stake)}`;
+    return `✅ Logged ${pick.banker ? 'banker ' : ''}trixie D${id}: ${money(pick.unit)} × 4 = ${money(pick.stake)}`;
   }
   if (pick.kind === 'double') {
     const id = store.addDouble(pick, { odds, stake, now });
@@ -296,6 +310,18 @@ export async function runOnce({ cfg, store, bot, now = new Date(), fixture, scor
       for (const t of findTrixies(events, cfg, now.getTime()).filter((x) => !store.pick(x.id)).slice(0, room)) {
         await bot.send(trixieMessage(t), { buttons: [[{ text: '✅ Placed', callback_data: `place:${t.id}` }, { text: 'Skip', callback_data: `skip:${t.id}` }]] });
         store.recordPick(t, now);
+        trixiesSent++;
+      }
+    }
+
+    // The banker trixie: once a week, from the Friday scan onwards.
+    const weekStart = ukDate(now.getTime() - ukWeekday(now) * 864e5);
+    if (cfg.banker && cfg.books.length && ukWeekday(now) >= 4 && store.getMeta('banker_week') !== weekStart) {
+      const b = findBankerTrixie(events, cfg, now.getTime());
+      if (b && !store.pick(b.id)) {
+        await bot.send(bankerMessage(b), { buttons: [[{ text: '✅ Placed', callback_data: `place:${b.id}` }, { text: 'Skip', callback_data: `skip:${b.id}` }]] });
+        store.recordPick(b, now);
+        store.setMeta('banker_week', weekStart);
         trixiesSent++;
       }
     }

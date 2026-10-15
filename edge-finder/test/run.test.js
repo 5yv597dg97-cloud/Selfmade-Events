@@ -251,3 +251,24 @@ test('trixies: sent with the chances, placed, settled leg by leg', async () => {
   assert.ok(bot.sent.some((m) => /Trixies: 1 placed, 1 paid out/.test(m.text)));
   store.close();
 });
+
+test('the banker trixie goes out once a week, from Friday', async () => {
+  const cfg = loadConfig({}, { 'max-stale-minutes': 1e6 });
+  const store = openStore(':memory:');
+  const bot = fakeBot();
+  await runOnce({ cfg, store, bot, now: new Date('2026-10-15T08:00:00Z'), fixture: FIXTURE }); // Thursday
+  assert.ok(!bot.sent.some((m) => /Banker trixie/.test(m.text)));
+  await runOnce({ cfg, store, bot, now: new Date('2026-10-16T08:00:00Z'), fixture: FIXTURE }); // Friday
+  const msg = bot.sent.find((m) => /Banker trixie/.test(m.text));
+  assert.match(msg.text, /with Paddy Power/);
+  assert.match(msg.text, /Liverpool to win/);
+  assert.match(msg.text, /96% of the time/);
+  bot.sent = [];
+  await runOnce({ cfg, store, bot, now: new Date('2026-10-16T16:00:00Z'), fixture: FIXTURE }); // Friday evening
+  assert.ok(!bot.sent.some((m) => /Banker trixie/.test(m.text)), 'only once a week');
+  const id = msg.buttons[0][0].callback_data.split(':')[1];
+  bot.queue = [tap(`place:${id}`)];
+  await runOnce({ cfg, store, bot, now: new Date('2026-10-16T16:05:00Z'), fixture: FIXTURE });
+  assert.ok(bot.sent.some((m) => /Logged banker trixie D\d+/.test(m.text)));
+  store.close();
+});

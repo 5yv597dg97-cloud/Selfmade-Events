@@ -12,6 +12,10 @@ const ICON = {
 };
 export const icon = (sport = '') => ICON[sport.split('_')[0]] ?? '🎯';
 
+/** Day of the week in UK time, Monday = 0. */
+export const ukWeekday = (d) => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+  .indexOf(new Date(d).toLocaleDateString('en-GB', { timeZone: 'Europe/London', weekday: 'short' }));
+
 /** Calendar date in UK time, for "per day" limits. */
 export const ukDate = (d) => new Date(d).toLocaleDateString('en-GB', { timeZone: 'Europe/London' });
 

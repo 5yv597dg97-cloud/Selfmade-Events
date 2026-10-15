@@ -156,6 +156,21 @@ Up to 2 a week, the bot sends a **trixie**: 3 selections from different matches 
 - **Tracked separately** from your singles win rate; `/report` shows trixies on their own line.
 - Settings: `EDGE_TRIXIES=false` turns them off; `EDGE_TRIXIE_UNIT_STAKE`, `EDGE_TRIXIES_PER_WEEK`, `EDGE_TRIXIE_LEG_MIN_PROB` change the rest.
 
+### Banker trixie
+
+Once a week, from the Friday scan, the bot sends a **banker trixie**: the 3 biggest football favourites starting in the next 3 days, at whichever of your bookmakers prices those three best. £0.50 a line, £2 in all.
+
+This is **not a value bet**. It's based on a test over 103 real weeks (10,367 matches, 10 European leagues), with a trixie of the week's 3 biggest favourites every week:
+
+| | Bet365 prices | Best price anywhere |
+|---|---|---|
+| All 3 won | 60% of weeks | 60% |
+| Paid something back | 96% of weeks | 96% |
+| Longest run with nothing back | 1 week | 1 week |
+| Profit on £206 staked | −£7.57 | +£0.40 |
+
+So it pays something back almost every week and costs roughly nothing over time: steady entertainment rather than profit. The message shows its value against fair prices so you can see when a weekend's prices are poor. `EDGE_BANKER=false` turns it off. Run the test yourself with the workflow's **trixie-test** mode.
+
 ### Stats model (for information)
 
 Previews of league football also show a **stats model** built only from past results: each team's attack and defence (home and away, recent matches counting most), from free [football-data.co.uk](https://www.football-data.co.uk) data.
