@@ -1,0 +1,1152 @@
+[
+ {
+  "id": "evt_ars_eve",
+  "sport_key": "soccer_epl",
+  "sport_title": "EPL",
+  "commence_time": "2026-10-18T14:00:00Z",
+  "home_team": "Arsenal",
+  "away_team": "Everton",
+  "bookmakers": [
+   {
+    "key": "pinnacle",
+    "title": "Pinnacle",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Arsenal",
+        "price": 1.45
+       },
+       {
+        "name": "Draw",
+        "price": 4.6
+       },
+       {
+        "name": "Everton",
+        "price": 8.0
+       }
+      ]
+     },
+     {
+      "key": "totals",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Over",
+        "price": 1.8,
+        "point": 2.5
+       },
+       {
+        "name": "Under",
+        "price": 2.08,
+        "point": 2.5
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "betfair_ex_uk",
+    "title": "Betfair",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Arsenal",
+        "price": 1.47
+       },
+       {
+        "name": "Draw",
+        "price": 4.7
+       },
+       {
+        "name": "Everton",
+        "price": 8.4
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "williamhill",
+    "title": "William Hill",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Arsenal",
+        "price": 1.53
+       },
+       {
+        "name": "Draw",
+        "price": 4.2
+       },
+       {
+        "name": "Everton",
+        "price": 6.5
+       }
+      ]
+     },
+     {
+      "key": "totals",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Over",
+        "price": 1.83,
+        "point": 2.5
+       },
+       {
+        "name": "Under",
+        "price": 1.95,
+        "point": 2.5
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "paddypower",
+    "title": "Paddy Power",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Arsenal",
+        "price": 1.5
+       },
+       {
+        "name": "Draw",
+        "price": 4.33
+       },
+       {
+        "name": "Everton",
+        "price": 7.0
+       }
+      ]
+     },
+     {
+      "key": "totals",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Over",
+        "price": 1.8,
+        "point": 2.5
+       },
+       {
+        "name": "Under",
+        "price": 2.0,
+        "point": 2.5
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "ladbrokes_uk",
+    "title": "Ladbrokes",
+    "last_update": "2026-10-14T10:30:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T10:30:00Z",
+      "outcomes": [
+       {
+        "name": "Arsenal",
+        "price": 1.62
+       },
+       {
+        "name": "Draw",
+        "price": 4.0
+       },
+       {
+        "name": "Everton",
+        "price": 6.0
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "evt_bos_nyk",
+  "sport_key": "basketball_nba",
+  "sport_title": "NBA",
+  "commence_time": "2026-10-15T23:30:00Z",
+  "home_team": "Boston Celtics",
+  "away_team": "New York Knicks",
+  "bookmakers": [
+   {
+    "key": "pinnacle",
+    "title": "Pinnacle",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Boston Celtics",
+        "price": 1.62
+       },
+       {
+        "name": "New York Knicks",
+        "price": 2.42
+       }
+      ]
+     },
+     {
+      "key": "spreads",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Boston Celtics",
+        "price": 1.95,
+        "point": -4.5
+       },
+       {
+        "name": "New York Knicks",
+        "price": 1.95,
+        "point": 4.5
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "skybet",
+    "title": "Sky Bet",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Boston Celtics",
+        "price": 1.72
+       },
+       {
+        "name": "New York Knicks",
+        "price": 2.2
+       }
+      ]
+     },
+     {
+      "key": "spreads",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Boston Celtics",
+        "price": 1.91,
+        "point": -4.5
+       },
+       {
+        "name": "New York Knicks",
+        "price": 1.91,
+        "point": 4.5
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "williamhill",
+    "title": "William Hill",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Boston Celtics",
+        "price": 1.6
+       },
+       {
+        "name": "New York Knicks",
+        "price": 2.35
+       }
+      ]
+     },
+     {
+      "key": "spreads",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Boston Celtics",
+        "price": 2.05,
+        "point": -4.5
+       },
+       {
+        "name": "New York Knicks",
+        "price": 1.8,
+        "point": 4.5
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "evt_kc_lv",
+  "sport_key": "americanfootball_nfl",
+  "sport_title": "NFL",
+  "commence_time": "2026-10-18T17:00:00Z",
+  "home_team": "Kansas City Chiefs",
+  "away_team": "Las Vegas Raiders",
+  "bookmakers": [
+   {
+    "key": "pinnacle",
+    "title": "Pinnacle",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Kansas City Chiefs",
+        "price": 1.5
+       },
+       {
+        "name": "Las Vegas Raiders",
+        "price": 2.7
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "coral",
+    "title": "Coral",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Kansas City Chiefs",
+        "price": 1.85
+       },
+       {
+        "name": "Las Vegas Raiders",
+        "price": 2.0
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "evt_live",
+  "sport_key": "soccer_epl",
+  "sport_title": "EPL",
+  "commence_time": "2026-10-14T11:30:00Z",
+  "home_team": "Chelsea",
+  "away_team": "Fulham",
+  "bookmakers": [
+   {
+    "key": "pinnacle",
+    "title": "Pinnacle",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Chelsea",
+        "price": 1.7
+       },
+       {
+        "name": "Draw",
+        "price": 3.9
+       },
+       {
+        "name": "Fulham",
+        "price": 5.0
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "skybet",
+    "title": "Sky Bet",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Chelsea",
+        "price": 1.95
+       },
+       {
+        "name": "Draw",
+        "price": 3.6
+       },
+       {
+        "name": "Fulham",
+        "price": 4.5
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "evt_no_sharp",
+  "sport_key": "soccer_epl",
+  "sport_title": "EPL",
+  "commence_time": "2026-10-19T15:00:00Z",
+  "home_team": "Brighton",
+  "away_team": "Brentford",
+  "bookmakers": [
+   {
+    "key": "williamhill",
+    "title": "William Hill",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Brighton",
+        "price": 1.9
+       },
+       {
+        "name": "Draw",
+        "price": 3.6
+       },
+       {
+        "name": "Brentford",
+        "price": 4.0
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "skybet",
+    "title": "Sky Bet",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Brighton",
+        "price": 1.91
+       },
+       {
+        "name": "Draw",
+        "price": 3.5
+       },
+       {
+        "name": "Brentford",
+        "price": 4.1
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "coral",
+    "title": "Coral",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Brighton",
+        "price": 1.88
+       },
+       {
+        "name": "Draw",
+        "price": 3.6
+       },
+       {
+        "name": "Brentford",
+        "price": 4.2
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "paddypower",
+    "title": "Paddy Power",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Brighton",
+        "price": 2.1
+       },
+       {
+        "name": "Draw",
+        "price": 3.4
+       },
+       {
+        "name": "Brentford",
+        "price": 3.6
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "evt_sinner",
+  "sport_key": "tennis_atp_paris_masters",
+  "sport_title": "ATP Paris Masters",
+  "commence_time": "2026-10-15T13:00:00Z",
+  "home_team": "Jannik Sinner",
+  "away_team": "Hugo Gaston",
+  "bookmakers": [
+   {
+    "key": "pinnacle",
+    "title": "Pinnacle",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Jannik Sinner",
+        "price": 1.12
+       },
+       {
+        "name": "Hugo Gaston",
+        "price": 6.8
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "betfair_ex_uk",
+    "title": "Betfair",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Jannik Sinner",
+        "price": 1.13
+       },
+       {
+        "name": "Hugo Gaston",
+        "price": 7.4
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "paddypower",
+    "title": "Paddy Power",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Jannik Sinner",
+        "price": 1.18
+       },
+       {
+        "name": "Hugo Gaston",
+        "price": 4.8
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "betfair_sb_uk",
+    "title": "Betfair Sportsbook",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Jannik Sinner",
+        "price": 1.16
+       },
+       {
+        "name": "Hugo Gaston",
+        "price": 5.0
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "evt_swiatek",
+  "sport_key": "tennis_wta_finals",
+  "sport_title": "WTA Finals",
+  "commence_time": "2026-10-16T17:00:00Z",
+  "home_team": "Iga Swiatek",
+  "away_team": "Elina Svitolina",
+  "bookmakers": [
+   {
+    "key": "pinnacle",
+    "title": "Pinnacle",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Iga Swiatek",
+        "price": 1.36
+       },
+       {
+        "name": "Elina Svitolina",
+        "price": 3.3
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "betfair_sb_uk",
+    "title": "Betfair Sportsbook",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Iga Swiatek",
+        "price": 1.42
+       },
+       {
+        "name": "Elina Svitolina",
+        "price": 2.8
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "evt_ufc1",
+  "sport_key": "mma_mixed_martial_arts",
+  "sport_title": "MMA",
+  "commence_time": "2026-10-18T03:00:00Z",
+  "home_team": "Islam Makhachev",
+  "away_team": "Renato Moicano",
+  "bookmakers": [
+   {
+    "key": "pinnacle",
+    "title": "Pinnacle",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Islam Makhachev",
+        "price": 1.25
+       },
+       {
+        "name": "Renato Moicano",
+        "price": 4.2
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "betfair_ex_uk",
+    "title": "Betfair",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Islam Makhachev",
+        "price": 1.26
+       },
+       {
+        "name": "Renato Moicano",
+        "price": 4.6
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "betfair_sb_uk",
+    "title": "Betfair Sportsbook",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Islam Makhachev",
+        "price": 1.31
+       },
+       {
+        "name": "Renato Moicano",
+        "price": 3.5
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "paddypower",
+    "title": "Paddy Power",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Islam Makhachev",
+        "price": 1.28
+       },
+       {
+        "name": "Renato Moicano",
+        "price": 3.6
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "evt_ufc2",
+  "sport_key": "mma_mixed_martial_arts",
+  "sport_title": "MMA",
+  "commence_time": "2026-10-18T04:30:00Z",
+  "home_team": "Tom Aspinall",
+  "away_team": "Ciryl Gane",
+  "bookmakers": [
+   {
+    "key": "pinnacle",
+    "title": "Pinnacle",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Tom Aspinall",
+        "price": 1.6
+       },
+       {
+        "name": "Ciryl Gane",
+        "price": 2.45
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "paddypower",
+    "title": "Paddy Power",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Tom Aspinall",
+        "price": 1.75
+       },
+       {
+        "name": "Ciryl Gane",
+        "price": 2.1
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "evt_liv_bur",
+  "sport_key": "soccer_epl",
+  "sport_title": "EPL",
+  "commence_time": "2026-10-17T14:00:00Z",
+  "home_team": "Liverpool",
+  "away_team": "Burnley",
+  "bookmakers": [
+   {
+    "key": "pinnacle",
+    "title": "Pinnacle",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Liverpool",
+        "price": 1.22
+       },
+       {
+        "name": "Draw",
+        "price": 6.8
+       },
+       {
+        "name": "Burnley",
+        "price": 14
+       }
+      ]
+     },
+     {
+      "key": "totals",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Over",
+        "price": 1.8,
+        "point": 2.75
+       },
+       {
+        "name": "Under",
+        "price": 2.08,
+        "point": 2.75
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "betfair_ex_uk",
+    "title": "Betfair",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Liverpool",
+        "price": 1.23
+       },
+       {
+        "name": "Draw",
+        "price": 7.2
+       },
+       {
+        "name": "Burnley",
+        "price": 16
+       }
+      ]
+     },
+     {
+      "key": "totals",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Over",
+        "price": 1.82,
+        "point": 2.75
+       },
+       {
+        "name": "Under",
+        "price": 2.12,
+        "point": 2.75
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "paddypower",
+    "title": "Paddy Power",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Liverpool",
+        "price": 1.27
+       },
+       {
+        "name": "Draw",
+        "price": 6.0
+       },
+       {
+        "name": "Burnley",
+        "price": 11
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "betfair_sb_uk",
+    "title": "Betfair Sportsbook",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Liverpool",
+        "price": 1.25
+       },
+       {
+        "name": "Draw",
+        "price": 6.0
+       },
+       {
+        "name": "Burnley",
+        "price": 12
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "evt_alc_fil",
+  "sport_key": "tennis_atp_paris_masters",
+  "sport_title": "ATP Paris Masters",
+  "commence_time": "2026-10-15T18:00:00Z",
+  "home_team": "Carlos Alcaraz",
+  "away_team": "Arthur Fils",
+  "bookmakers": [
+   {
+    "key": "pinnacle",
+    "title": "Pinnacle",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Carlos Alcaraz",
+        "price": 1.25
+       },
+       {
+        "name": "Arthur Fils",
+        "price": 4.3
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "betfair_ex_uk",
+    "title": "Betfair",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Carlos Alcaraz",
+        "price": 1.24
+       },
+       {
+        "name": "Arthur Fils",
+        "price": 4.6
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "paddypower",
+    "title": "Paddy Power",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Carlos Alcaraz",
+        "price": 1.2
+       },
+       {
+        "name": "Arthur Fils",
+        "price": 5.1
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "evt_mci_wol",
+  "sport_key": "soccer_epl",
+  "sport_title": "EPL",
+  "commence_time": "2026-10-17T16:30:00Z",
+  "home_team": "Manchester City",
+  "away_team": "Wolverhampton Wanderers",
+  "bookmakers": [
+   {
+    "key": "pinnacle",
+    "title": "Pinnacle",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Manchester City",
+        "price": 1.3
+       },
+       {
+        "name": "Draw",
+        "price": 6.0
+       },
+       {
+        "name": "Wolverhampton Wanderers",
+        "price": 11.0
+       }
+      ]
+     },
+     {
+      "key": "totals",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Over",
+        "price": 1.95,
+        "point": 3.0
+       },
+       {
+        "name": "Under",
+        "price": 1.93,
+        "point": 3.0
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "betfair_ex_uk",
+    "title": "Betfair",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Manchester City",
+        "price": 1.31
+       },
+       {
+        "name": "Draw",
+        "price": 6.4
+       },
+       {
+        "name": "Wolverhampton Wanderers",
+        "price": 12.5
+       }
+      ]
+     },
+     {
+      "key": "totals",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Over",
+        "price": 1.97,
+        "point": 3.0
+       },
+       {
+        "name": "Under",
+        "price": 1.96,
+        "point": 3.0
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "paddypower",
+    "title": "Paddy Power",
+    "last_update": "2026-10-14T11:58:00Z",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-10-14T11:58:00Z",
+      "outcomes": [
+       {
+        "name": "Manchester City",
+        "price": 1.25
+       },
+       {
+        "name": "Draw",
+        "price": 5.5
+       },
+       {
+        "name": "Wolverhampton Wanderers",
+        "price": 13.0
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+]

@@ -2,6 +2,8 @@
 
 A booking system where **hosts** post events and **clients** buy tickets.
 
+The [`edge-finder/`](edge-finder/) folder holds a separate, standalone tool for finding value bets at sportsbooks; see its README.
+
 ## Features
 
 **Clients**
