@@ -13,6 +13,7 @@ import { findScorelineDoubles } from './scorelines.js';
 import { previewMatches, previewText } from './preview.js';
 import { loadHistory, seasonCode, LEAGUES } from './history.js';
 import { backtest } from './backtest.js';
+import { ratingsFor } from './statsview.js';
 import { gbp, pct, when, selection } from './format.js';
 
 const LAST_SCAN = '.last-scan.json';
@@ -105,7 +106,13 @@ async function main() {
     // Look at the whole card, so don't skip anything for the credit budget.
     const pcfg = { ...cfg, creditBudget: false };
     const events = await loadEvents(pcfg, flags, cfg.sports, now.getTime());
-    const messages = previewText(previewMatches(events, pcfg, now.getTime(), { today: !flags.hours, hours: Number(flags.hours) || 24 }), cfg);
+    let ratings = {};
+    try {
+      ratings = flags.fixture ? {} : await ratingsFor(events, now.getTime());
+    } catch (err) {
+      console.error(`  (Stats model unavailable: ${err.message})`);
+    }
+    const messages = previewText(previewMatches(events, pcfg, now.getTime(), { today: !flags.hours, hours: Number(flags.hours) || 24, ratings }), cfg);
     if (flags.telegram) {
       const store = openStore(cfg.db);
       const chatId = cfg.telegramChatId || store.getMeta('chat_id');
@@ -227,7 +234,7 @@ async function main() {
       const bot = telegram({ token: cfg.telegramToken, chatId });
       if (isNew) await bot.send(`👋 Linked to this chat. Picks will arrive here around 9am and 5pm.\n\n${BOT_HELP}`);
       const r = await runOnce({ cfg, store, bot, now, fixture: flags.fixture, scoresFile: flags.scores });
-      console.log(`Sent ${r.sent} picks and ${r.doublesSent} doubles, settled ${r.settled} bets, bankroll ${gbp.format(r.bankroll)}${r.paused ? ' (paused)' : ''}`);
+      console.log(`Sent ${r.sent} picks, ${r.doublesSent} doubles and ${r.trixiesSent} trixies, settled ${r.settled} bets, bankroll ${gbp.format(r.bankroll)}${r.paused ? ' (paused)' : ''}`);
       console.log(`Matches with odds: ${r.events} · value picks found: ${r.found} · API credits left: ${r.remaining ?? 'unknown'}`);
       if (r.budget !== Infinity) console.log(`Credit budget this run: ${r.budget}`);
       if (r.skipped.length) console.log(`Skipped (nothing in the next ${cfg.lookaheadHours}h): ${r.skipped.join(', ')}`);

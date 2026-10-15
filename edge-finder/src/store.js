@@ -50,6 +50,10 @@ export function openStore(path) {
       settled_at TEXT
     );
   `);
+  // Trixies share the doubles table; older bet logs need the column added.
+  if (!db.prepare('PRAGMA table_info(doubles)').all().some((c) => c.name === 'type')) {
+    db.exec("ALTER TABLE doubles ADD COLUMN type TEXT NOT NULL DEFAULT 'double'");
+  }
   const getMeta = (key) => db.prepare('SELECT value FROM meta WHERE key = ?').get(key)?.value ?? null;
   const setMeta = (key, value) => db.prepare(
     'INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value',
@@ -80,9 +84,11 @@ export function openStore(path) {
     setMeta,
     addDouble(pick, { odds = pick.odds, stake = pick.stake, now = new Date() } = {}) {
       const legs = pick.legs.map((l) => ({ ...l, result: null }));
+      const type = pick.kind === 'trixie' ? 'trixie' : 'double';
+      const ev = type === 'trixie' ? pick.ev : pick.fairProb * odds - 1;
       const { lastInsertRowid } = db.prepare(`
-        INSERT INTO doubles (pick_id, placed_at, book, legs, odds, stake, fair_prob, ev) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(pick.id, now.toISOString(), pick.book, JSON.stringify(legs), odds, stake, pick.fairProb, pick.fairProb * odds - 1);
+        INSERT INTO doubles (pick_id, placed_at, book, legs, odds, stake, fair_prob, ev, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(pick.id, now.toISOString(), pick.book, JSON.stringify(legs), odds, stake, pick.fairProb, ev, type);
       return Number(lastInsertRowid);
     },
     getDouble(id) {
@@ -99,9 +105,9 @@ export function openStore(path) {
       db.prepare('UPDATE doubles SET status = ?, pnl = ?, settled_at = ? WHERE id = ?').run(status, pnl, at.toISOString(), id);
     },
     /** Doubles sent to you in the 7 days before `now`. */
-    doublesSentSince(since) {
+    doublesSentSince(since, kind = 'double') {
       return db.prepare('SELECT data FROM picks WHERE sent_at >= ?').all(since.toISOString())
-        .filter((r) => JSON.parse(r.data).kind === 'double').length;
+        .filter((r) => JSON.parse(r.data).kind === kind).length;
     },
     pick(id) {
       const row = db.prepare('SELECT * FROM picks WHERE id = ?').get(id);
@@ -115,7 +121,7 @@ export function openStore(path) {
       const since = new Date(now.getTime() - 26 * 3600e3).toISOString();
       const today = ukDate(now);
       return db.prepare('SELECT sent_at, data FROM picks WHERE sent_at >= ?').all(since)
-        .filter((r) => ukDate(r.sent_at) === today && JSON.parse(r.data).kind !== 'double').length;
+        .filter((r) => ukDate(r.sent_at) === today && !JSON.parse(r.data).kind).length;
     },
     setPickStatus(id, status) {
       db.prepare('UPDATE picks SET status = ? WHERE id = ?').run(status, id);
@@ -172,12 +178,14 @@ export function report(bets) {
   };
 }
 
-export function doublesReport(doubles) {
+export function doublesReport(all, type = 'double') {
+  const doubles = all.filter((d) => (d.type ?? 'double') === type);
   const settled = doubles.filter((d) => d.status !== 'open');
   return {
     placed: doubles.length,
     open: doubles.length - settled.length,
     won: settled.filter((d) => d.status === 'won').length,
+    returned: settled.filter((d) => d.status === 'won' || d.status === 'part').length,
     lost: settled.filter((d) => d.status === 'lost').length,
     staked: settled.reduce((a, d) => a + d.stake, 0),
     pnl: settled.reduce((a, d) => a + d.pnl, 0),

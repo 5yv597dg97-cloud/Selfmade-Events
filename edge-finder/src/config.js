@@ -35,6 +35,13 @@ const DEFAULTS = {
   legMinEdge: 0.02,
   legMinOdds: 1.5,
   legMaxOdds: 40,
+  trixies: false,
+  trixieUnitStake: 0.5, // per line; a trixie is 4 lines
+  trixiesPerWeek: 2,
+  trixieLegMinProb: 0.75,
+  trixieLegMinEdge: 0, // each leg priced at least fair
+  trixieLegMaxOdds: 1.6,
+  trixieMinEdge: 0.02, // the whole trixie at least 2% above fair
   scorelines: false,
   footballMarkets: 'h2h,totals', // totals feed the scoreline model; costs 1 extra credit per league scan
   scorelineLegEdge: 0.05, // a scoreline is only worth backing at least this far above its fair price
@@ -67,6 +74,7 @@ export const PROFILES = {
     maxPicksPerDay: 5,
     doubles: true,
     scorelines: true,
+    trixies: true,
   },
   value: {},
 };
@@ -81,6 +89,9 @@ const ENV = {
   doubles: 'EDGE_DOUBLES', doubleStake: 'EDGE_DOUBLE_STAKE', doublesPerWeek: 'EDGE_DOUBLES_PER_WEEK',
   doubleMinOdds: 'EDGE_DOUBLE_MIN_ODDS', doubleMaxOdds: 'EDGE_DOUBLE_MAX_ODDS', doubleMinEdge: 'EDGE_DOUBLE_MIN_EDGE',
   legMinEdge: 'EDGE_LEG_MIN_EDGE', legMinOdds: 'EDGE_LEG_MIN_ODDS', legMaxOdds: 'EDGE_LEG_MAX_ODDS',
+  trixies: 'EDGE_TRIXIES', trixieUnitStake: 'EDGE_TRIXIE_UNIT_STAKE', trixiesPerWeek: 'EDGE_TRIXIES_PER_WEEK',
+  trixieLegMinProb: 'EDGE_TRIXIE_LEG_MIN_PROB', trixieLegMinEdge: 'EDGE_TRIXIE_LEG_MIN_EDGE',
+  trixieLegMaxOdds: 'EDGE_TRIXIE_LEG_MAX_ODDS', trixieMinEdge: 'EDGE_TRIXIE_MIN_EDGE',
   scorelines: 'EDGE_SCORELINES', footballMarkets: 'EDGE_FOOTBALL_MARKETS', scorelineLegEdge: 'EDGE_SCORELINE_LEG_EDGE',
   scorelineTopN: 'EDGE_SCORELINE_TOP_N', scorelineTarget: 'EDGE_SCORELINE_TARGET',
   creditBudget: 'EDGE_CREDIT_BUDGET', runsPerDay: 'EDGE_RUNS_PER_DAY',

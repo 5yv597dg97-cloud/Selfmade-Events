@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { fetchEvents, fetchOdds, fetchScores, fetchSports } from './odds-api.js';
 import { grade, doubleOutcome } from './settle.js';
+import { trixieOutcome } from './trixie.js';
 
 // The sharp books we need in every request when naming bookmakers explicitly.
 const SHARP_REQUEST = ['pinnacle', 'betfair_ex_uk'];
@@ -131,7 +132,7 @@ export async function settleFinished(store, cfg, { now = new Date(), scoresFile,
       changed = true;
     }
     if (changed) store.setDoubleLegs(d.id, d.legs);
-    const result = doubleOutcome(d);
+    const result = d.type === 'trixie' ? trixieOutcome(d) : doubleOutcome(d);
     if (result) {
       store.settleDouble(d.id, result, now);
       settledDoubles.push({ double: d, ...result });

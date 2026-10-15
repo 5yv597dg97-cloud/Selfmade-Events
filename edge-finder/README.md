@@ -138,6 +138,38 @@ The bot also suggests **correct-score doubles** near 99/1, for example *Man City
 
 They settle automatically on the exact final score. Turning them off: `EDGE_SCORELINES=false`. Fetching total goals costs 1 extra credit per football league scan, which the credit budget accounts for.
 
+### Trixies
+
+Up to 2 a week, the bot sends a **trixie**: 3 selections from different matches at one bookmaker, staked as 4 bets (3 doubles + 1 treble) at £0.50 a line, £2 in all. Any 2 winners pay something back.
+
+> 🎯 **Trixie** with Paddy Power
+> 1. 🎾 **Jannik Sinner to win** @ 1.18 (min 1.16) · 88%
+> 2. ⚽ **Liverpool to win** @ 1.27 (min 1.24) · 81%
+> 3. 🥊 **Islam Makhachev to win** @ 1.28 (min 1.27) · 79%
+> All 3 win (56%) · 2 of 3 win (36%) · 0 or 1 win (8%)
+> Returns something 92% of the time · edge +5%
+
+- **Each leg is a 75%+ chance priced at least fair**, and the trixie as a whole at least 2% above fair. Good-value legs make every line good value.
+- **They are rare**, because three such legs have to line up at the same bookmaker.
+- **Placing one:** add the three selections to the bet slip, choose *Trixie*, enter £0.50 a line, then tap ✅ Placed.
+- **Settling:** automatic from scores where available. Otherwise settle each leg with `/leg D3 1 won` (leg numbers as in the message), or the whole trixie with `/result D3 won|lost|void`.
+- **Tracked separately** from your singles win rate; `/report` shows trixies on their own line.
+- Settings: `EDGE_TRIXIES=false` turns them off; `EDGE_TRIXIE_UNIT_STAKE`, `EDGE_TRIXIES_PER_WEEK`, `EDGE_TRIXIE_LEG_MIN_PROB` change the rest.
+
+### Stats model (for information)
+
+Previews of league football also show a **stats model** built only from past results: each team's attack and defence (home and away, recent matches counting most), from free [football-data.co.uk](https://www.football-data.co.uk) data.
+
+It was **tested before being added**. Over 4,770 matches in 10 European leagues across the 2024/25 and 2025/26 seasons, rated one matchday at a time using only earlier results:
+
+| | Log loss (lower is better) |
+|---|---|
+| Market (Pinnacle odds) | 0.970 |
+| Stats model | 0.991 |
+| Market + 10% stats | 0.970 (no better) |
+
+Using it as a filter on value bets also made results worse. So it is **shown for interest and never used to choose or block picks**. The market already includes form, home advantage and head-to-heads, plus team news the results can't see. Run the test again any time with the workflow's **backtest** mode.
+
 ### Bookmakers
 
 Picks come from Paddy Power, Betfair Sportsbook, Coral, Ladbrokes and Betway. Up to 10 bookmakers (including Pinnacle and the Betfair Exchange) cost the same single credit per scan, so there's room for 3 more at no cost. Paddy Power and Betfair Sportsbook are one company (Flutter), as are Coral and Ladbrokes (Entain), so a restriction at one can follow you to its sister brand. Betfred isn't covered by The Odds API, so it can't be scanned. If a bookmaker never appears in the odds data, the bot tells you once.

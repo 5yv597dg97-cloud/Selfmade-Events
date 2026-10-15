@@ -223,3 +223,31 @@ test('a scoreline double settles on the exact score', async () => {
   assert.deepEqual(store.getDouble(d.id).legs.map((l) => l.result), ['won', 'lost']);
   store.close();
 });
+
+test('trixies: sent with the chances, placed, settled leg by leg', async () => {
+  const cfg = loadConfig({}, {});
+  const store = openStore(':memory:');
+  const bot = fakeBot();
+  const r = await runOnce({ cfg, store, bot, now: new Date('2026-10-14T12:00:00Z'), fixture: FIXTURE });
+  assert.equal(r.trixiesSent, 1);
+  const msg = bot.sent.find((m) => /Trixie/.test(m.text));
+  assert.match(msg.text, /Jannik Sinner to win<\/b> @ 1\.18/);
+  assert.match(msg.text, /Stake <b>£0\.50 × 4 = £2\.00<\/b>/);
+  assert.match(msg.text, /Returns something 9\d% of the time/);
+  const id = msg.buttons[0][0].callback_data.split(':')[1];
+
+  bot.queue = [tap(`place:${id}`)];
+  bot.sent = [];
+  await runOnce({ cfg, store, bot, now: new Date('2026-10-14T12:05:00Z'), fixture: FIXTURE });
+  assert.ok(bot.sent.some((m) => /Logged trixie D1: £0\.50 × 4 = £2\.00/.test(m.text)));
+
+  // Sinner and Liverpool win, Makhachev loses: the Sinner/Liverpool double pays.
+  bot.queue = [say('/leg D1 1 won'), say('/leg D1 2 won'), say('/leg D1 3 lost'), say('/report')];
+  bot.sent = [];
+  await runOnce({ cfg, store, bot, now: new Date('2026-10-14T12:10:00Z'), fixture: FIXTURE });
+  const d = store.getDouble(1);
+  assert.equal(d.status, 'part');
+  assert.equal(d.pnl, Math.round((0.5 * 1.18 * 1.27 - 2) * 100) / 100);
+  assert.ok(bot.sent.some((m) => /Trixies: 1 placed, 1 paid out/.test(m.text)));
+  store.close();
+});

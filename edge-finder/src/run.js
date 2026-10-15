@@ -5,14 +5,16 @@ import { loadEvents, settleFinished } from './events.js';
 import { report, doublesReport } from './store.js';
 import { findDoubles, fractional } from './doubles.js';
 import { findScorelineDoubles } from './scorelines.js';
-import { manualResult } from './settle.js';
+import { findTrixies, trixieOutcome } from './trixie.js';
+import { manualResult, doubleOutcome } from './settle.js';
 import { esc } from './telegram.js';
 import { money, pct, when, selection, ukDate, icon } from './format.js';
 
 
 export const HELP = `<b>Commands</b>
 /placed &lt;pick&gt; [odds] [stake]: log a pick, e.g. <code>/placed 3a2fce56 1.16 2</code> if you got a different price
-/result &lt;bet&gt; &lt;won|lost|void&gt;: settle a bet by hand (tennis retirements, MMA, cricket); doubles are D1, D2…
+/result &lt;bet&gt; &lt;won|lost|void&gt;: settle a bet by hand (tennis retirements, MMA, cricket); doubles and trixies are D1, D2…
+/leg &lt;D#&gt; &lt;leg 1-3&gt; &lt;won|lost|void&gt;: settle one leg of a double or trixie
 /bets: open bets
 /report: bankroll, win rate, profit
 /resume: restart after the stop-loss paused betting
@@ -51,6 +53,21 @@ export function scorelineMessage(d) {
   ].join('\n');
 }
 
+export function trixieMessage(t) {
+  const lines = [
+    `🎯 <b>Trixie</b> with ${esc(t.bookTitle)}: 3 selections, 4 bets (3 doubles + 1 treble)`,
+    ...t.legs.map((l, i) => `${i + 1}. ${icon(l.sport)} <b>${esc(selection(l))}</b> @ ${l.odds} (min ${l.minPrice}) · ${pct(l.fairProb, 0)} · ${when(l.commenceTime)}`),
+    '',
+    `Stake <b>${money(t.unit)} × 4 = ${money(t.stake)}</b>`,
+    `All 3 win (${pct(t.pAll, 0)}): back ${money(t.unit * t.returnAll)}, profit ${money(t.unit * t.returnAll - t.stake)}`,
+    `2 of 3 win (${pct(t.pTwo, 0)}): back ${money(t.unit * Math.min(...t.returnTwo))}–${money(t.unit * Math.max(...t.returnTwo))}`,
+    `0 or 1 win (${pct(t.pNothing, 0)}): nothing back`,
+    `Returns something ${pct(t.pAll + t.pTwo, 0)} of the time · edge +${pct(t.ev)}`,
+    `<i>Check each price is still at least its minimum. Not counted in your win rate.</i> Pick <code>${t.id}</code>`,
+  ];
+  return lines.join('\n');
+}
+
 function reportText(store, cfg) {
   const r = report(store.all());
   const bank = store.bankroll(cfg.bankroll);
@@ -62,11 +79,17 @@ function reportText(store, cfg) {
   }
   const d = doublesReport(store.allDoubles());
   if (d.placed) lines.push(`🎲 Fun doubles: ${d.placed} placed, ${d.won} won, ${d.lost} lost · ${money(d.pnl)}`);
+  const t = doublesReport(store.allDoubles(), 'trixie');
+  if (t.placed) lines.push(`🎯 Trixies: ${t.placed} placed, ${t.returned} paid out · ${money(t.pnl)}`);
   return lines.join('\n');
 }
 
 function placeBet(store, pick, { odds = pick.odds, stake = pick.stake, now }) {
   store.setPickStatus(pick.id, 'placed');
+  if (pick.kind === 'trixie') {
+    const id = store.addDouble(pick, { now });
+    return `✅ Logged trixie D${id}: ${money(pick.unit)} × 4 = ${money(pick.stake)}`;
+  }
   if (pick.kind === 'double') {
     const id = store.addDouble(pick, { odds, stake, now });
     return `✅ Logged double D${id} @ ${odds}, ${money(stake)}`;
@@ -127,9 +150,14 @@ async function onCommand(msg, { store, bot, cfg, now }) {
         const dbl = store.getDouble(Number(args[0].slice(1)));
         if (!dbl) return reply(`No double ${esc(args[0])}. Send /bets to see them.`);
         if (dbl.status !== 'open') return reply(`Double D${dbl.id} is already settled (${dbl.status}).`);
-        const result = manualResult(dbl, (args[1] ?? '').toLowerCase());
+        const status = (args[1] ?? '').toLowerCase();
+        let result;
+        if (dbl.type === 'trixie') {
+          if (!['won', 'lost', 'void'].includes(status)) return reply('For a trixie use won (all 3 won), lost, or void; or settle legs one at a time with /leg');
+          result = status === 'void' ? { status: 'void', pnl: 0 } : trixieOutcome({ ...dbl, legs: dbl.legs.map((l) => ({ ...l, result: status })) });
+        } else result = manualResult(dbl, status);
         store.settleDouble(dbl.id, result, now);
-        return reply(`Double D${dbl.id}: ${result.status} ${money(result.pnl)}`);
+        return reply(`${dbl.type === 'trixie' ? 'Trixie' : 'Double'} D${dbl.id}: ${result.status} ${money(result.pnl)}`);
       }
       const bet = store.get(Number(args[0]));
       if (!bet) return reply(`No bet ${esc(args[0] ?? '')}. Send /bets to see their numbers.`);
@@ -138,10 +166,22 @@ async function onCommand(msg, { store, bot, cfg, now }) {
       store.settle(bet.id, result, now);
       return reply(`Bet ${bet.id}: ${result.status} ${money(result.pnl)}`);
     }
+    case '/leg': {
+      const dbl = /^d\d+$/i.test(args[0] ?? '') && store.getDouble(Number(args[0].slice(1)));
+      const n = Number(args[1]);
+      const status = (args[2] ?? '').toLowerCase();
+      if (!dbl || dbl.status !== 'open') return reply('Use /leg D2 1 won, for an open double or trixie (send /bets to see them).');
+      if (!(n >= 1 && n <= dbl.legs.length) || !['won', 'lost', 'void'].includes(status)) return reply(`Leg must be 1–${dbl.legs.length} and the result won, lost or void.`);
+      dbl.legs[n - 1].result = status;
+      store.setDoubleLegs(dbl.id, dbl.legs);
+      const result = dbl.type === 'trixie' ? trixieOutcome(dbl) : doubleOutcome(dbl);
+      if (result) store.settleDouble(dbl.id, result, now);
+      return reply(`D${dbl.id} leg ${n}: ${status}.${result ? ` Settled: ${result.status} ${money(result.pnl)}` : ' Waiting on the other legs.'}`);
+    }
     case '/bets': {
       const lines = [
         ...store.open().map((b) => `<b>${b.id}</b> ${esc(selection(b))} @ ${b.odds}, ${money(b.stake)} · ${when(b.commence_time)}`),
-        ...store.openDoubles().map((d) => `<b>D${d.id}</b> 🎲 ${d.legs.map((l) => `${esc(selection(l))}${l.result ? ` (${l.result})` : ''}`).join(' + ')} @ ${d.odds}, ${money(d.stake)}`),
+        ...store.openDoubles().map((d) => `<b>D${d.id}</b> ${d.type === 'trixie' ? '🎯 trixie' : '🎲'} ${d.legs.map((l) => `${esc(selection(l))}${l.result ? ` (${l.result})` : ''}`).join(' + ')} @ ${d.odds}, ${money(d.stake)}`),
       ];
       return reply(lines.length ? lines.join('\n') : 'No open bets.');
     }
@@ -191,9 +231,9 @@ export async function runOnce({ cfg, store, bot, now = new Date(), fixture, scor
     await bot.send(`${mark} Bet ${s.bet.id} ${s.status}: ${esc(s.bet.home)} ${s.home}–${s.away} ${esc(s.bet.away)} · ${esc(selection(s.bet))} · ${money(s.pnl)}`);
   }
   for (const s of settledDoubles) {
-    const mark = { won: '🎉', lost: '❌' }[s.status] ?? '➖';
+    const mark = { won: '🎉', lost: '❌', part: '↩️' }[s.status] ?? '➖';
     const legs = s.double.legs.map((l) => `${esc(selection(l))} ${l.result ? `(${l.result}${l.score ? ` ${l.score}` : ''})` : ''}`).join(' + ');
-    await bot.send(`${mark} Double D${s.double.id} ${s.status}: ${legs} · ${money(s.pnl)}`);
+    await bot.send(`${mark} ${s.double.type === 'trixie' ? 'Trixie' : 'Double'} D${s.double.id} ${s.status === 'part' ? 'paid back part' : s.status}: ${legs} · ${money(s.pnl)}`);
   }
   // MMA, cricket and some tennis have no scores in the API; ask once the result should be known.
   const dayAgo = now.getTime() - 24 * 3600e3;
@@ -201,7 +241,7 @@ export async function runOnce({ cfg, store, bot, now = new Date(), fixture, scor
     ...store.open().filter((b) => Date.parse(b.commence_time) < dayAgo)
       .map((b) => `<b>${b.id}</b> ${esc(selection(b))}: <code>/result ${b.id} won</code> or <code>lost</code>`),
     ...store.openDoubles().filter((d) => d.legs.every((l) => l.result || Date.parse(l.commenceTime) < dayAgo))
-      .map((d) => `<b>D${d.id}</b> 🎲 double: <code>/result D${d.id} won</code> or <code>lost</code>`),
+      .map((d) => `<b>D${d.id}</b> ${d.type === 'trixie' ? '🎯 trixie' : '🎲 double'}: settle each unfinished leg with <code>/leg D${d.id} &lt;1-${d.legs.length}&gt; won</code> or <code>lost</code>`),
   ];
   if (unsettled.length) await bot.send(`Please settle by hand (no score found):\n${unsettled.join('\n')}`);
 
@@ -210,6 +250,7 @@ export async function runOnce({ cfg, store, bot, now = new Date(), fixture, scor
   const footer = [];
   let sent = 0;
   let doublesSent = 0;
+  let trixiesSent = 0;
   const diag = { events: 0, skipped: [], overBudget: [], budget: Infinity, errors: [], remaining: null, found: 0 };
 
   if (bankroll <= stop) {
@@ -249,13 +290,23 @@ export async function runOnce({ cfg, store, bot, now = new Date(), fixture, scor
       }
     }
 
+    if (cfg.trixies && cfg.books.length) {
+      const weekAgo = new Date(now.getTime() - 7 * 864e5);
+      const room = Math.max(0, cfg.trixiesPerWeek - store.doublesSentSince(weekAgo, 'trixie'));
+      for (const t of findTrixies(events, cfg, now.getTime()).filter((x) => !store.pick(x.id)).slice(0, room)) {
+        await bot.send(trixieMessage(t), { buttons: [[{ text: '✅ Placed', callback_data: `place:${t.id}` }, { text: 'Skip', callback_data: `skip:${t.id}` }]] });
+        store.recordPick(t, now);
+        trixiesSent++;
+      }
+    }
+
     if (found.length > picks.length) footer.push(`${found.length - picks.length} more pick${found.length - picks.length === 1 ? '' : 's'} held back by your ${cfg.maxPicksPerDay}-a-day limit.`);
-    else if (!sent && !doublesSent) footer.push('No new picks this time. Most scans find none; that is normal.');
+    else if (!sent && !doublesSent && !trixiesSent) footer.push('No new picks this time. Most scans find none; that is normal.');
     footer.push(...missingBooks(store, cfg, events));
     if (errors.length) footer.push(`⚠️ Couldn't load: ${esc(errors.join('; '))}`);
     if (remaining != null && remaining < 60) footer.push(`⚠️ Only ${remaining} Odds API credits left this month.`);
   }
 
   await bot.send([reportText(store, cfg), ...footer].join('\n\n'));
-  return { sent, doublesSent, settled: settled.length + settledDoubles.length, bankroll, paused: bankroll <= stop, ...diag };
+  return { sent, doublesSent, trixiesSent, settled: settled.length + settledDoubles.length, bankroll, paused: bankroll <= stop, ...diag };
 }
