@@ -5,9 +5,55 @@
     <p>Payments are running in <strong>demo mode</strong>: purchases are approved instantly and no money changes hands, so there's nothing to set up.</p>
     <p class="muted">Once the site has Stripe keys, this page lets you connect a bank account to receive ticket sales.</p>
   <% } else if (account.stripe_charges_enabled) { %>
-    <p><span class="badge badge-published">Active</span></p>
-    <p>You're set up to sell paid tickets. Ticket money is paid out to your bank account by Stripe, usually within a few days of each sale.</p>
-    <form method="post" action="/host/payments/dashboard">
+    <p>
+      <span class="badge badge-published">Active</span>
+      <% if (summary.trusted) { %><span class="badge badge-draft">Trusted host</span><% } %>
+    </p>
+    <% if (summary.trusted) { %>
+      <p>You're a trusted host: money from ticket sales is paid to your bank <strong>every day</strong> once Stripe has cleared it (usually 3 days after each sale), and you can get paid instantly whenever you like.</p>
+    <% } else { %>
+      <p>Money from each event is paid to your bank <strong><%= summary.holdDays %> days after the event</strong>, so buyers can be refunded if anything goes wrong.</p>
+      <p class="muted small">After <%= summary.trustedMinEvents %> successful events you'll become a trusted host, with daily and instant payouts. You've completed <%= summary.completedEvents %> so far.</p>
+    <% } %>
+
+    <dl class="stats">
+      <% if (summary.balance) { %>
+        <div><dt>In your Stripe balance</dt><dd><%= format.money(summary.balance.available, { free: false }) %></dd></div>
+      <% } %>
+      <% if (!summary.trusted) { %>
+        <div><dt>Held until after events</dt><dd><%= format.money(summary.held, { free: false }) %></dd></div>
+        <% if (summary.nextReleaseAt) { %><div><dt>Next release</dt><dd><%= format.dateTime(summary.nextReleaseAt).replace(/, \d+:\d+ [ap]m$/, '') %></dd></div><% } %>
+      <% } %>
+    </dl>
+
+    <% if (summary.instant) { %>
+      <form method="post" action="/host/payments/instant" class="card instant" onsubmit="return confirm('Send <%= format.money(summary.instant.receive) %> to your bank now? The fee is <%= format.money(summary.instant.fee) %>.')">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div>
+          <strong>Get paid now: <%= format.money(summary.instant.receive) %></strong><br>
+          <span class="muted small"><%= format.money(summary.instant.available) %> available, minus a <%= format.money(summary.instant.fee) %> instant payout fee. Usually arrives within 30 minutes.</span>
+        </div>
+        <button class="button">Get paid now</button>
+      </form>
+    <% } %>
+
+    <% if (summary.recent.length) { %>
+      <h2>Recent payouts</h2>
+      <table class="compact">
+        <thead><tr><th>Date</th><th>Amount</th><th>Type</th></tr></thead>
+        <tbody>
+        <% for (const p of summary.recent) { %>
+          <tr>
+            <td><%= format.dateTime(new Date(p.created_at.replace(' ', 'T') + 'Z').toISOString()) %></td>
+            <td><%= format.money(p.amount_cents, { free: false }) %><% if (p.fee_cents) { %> <span class="muted small">(fee <%= format.money(p.fee_cents) %>)</span><% } %></td>
+            <td><%= p.method === 'instant' ? 'Instant' : 'Standard' %></td>
+          </tr>
+        <% } %>
+        </tbody>
+      </table>
+    <% } %>
+
+    <form method="post" action="/host/payments/dashboard" class="spaced">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <button class="button secondary">View payouts in Stripe</button>
     </form>

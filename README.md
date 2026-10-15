@@ -16,6 +16,7 @@ A booking system where **hosts** post events and **clients** buy tickets.
 - Attendee list and check-in by ticket code (each ticket can be checked in once)
 - Cancel an event, which refunds every paid order automatically
 - Connect a bank account through Stripe (Payouts page) to receive ticket money directly; dashboard shows earnings after commission
+- New hosts are paid 2 days after each event; trusted hosts get daily payouts and can request instant payouts (see [Host payouts](#host-payouts))
 
 **Under the hood**
 - Overselling can't happen: seats are reserved with a conditional `UPDATE` inside a SQLite transaction before payment is taken, and are released if payment fails
@@ -55,6 +56,10 @@ Run the tests with `npm test`.
 | `BOOKING_FEE_PERCENT` | `0`             | Buyer-paid fee: % of each paid ticket           |
 | `BOOKING_FEE_FIXED_PENCE` | `0`         | Buyer-paid fee: pence per paid ticket           |
 | `PLATFORM_COMMISSION_PERCENT` | `0`     | % of ticket sales kept from the host's share    |
+| `PAYOUT_HOLD_DAYS_AFTER_EVENT` | `2`    | New hosts are paid this many days after each event |
+| `TRUSTED_HOST_MIN_EVENTS` | `3`         | Completed events with sales before a host is trusted |
+| `INSTANT_PAYOUT_FEE_PERCENT` | `1`      | Fee passed on to hosts for instant payouts      |
+| `INSTANT_PAYOUT_MIN_FEE_PENCE` | `40`   | Minimum instant payout fee                      |
 | `APP_URL`        | Render URL           | Public URL used in Stripe redirects (set it when you add a custom domain) |
 | `PAYMENTS`       | –                    | `mock` allows production without Stripe (demo)  |
 
@@ -71,6 +76,29 @@ Payments use **Stripe Checkout** with **Stripe Connect** (Express accounts):
 With this setup (destination charges), Stripe's processing fee is taken from **your** share. Set your booking fee or commission to at least cover it, or you'll lose money on each sale.
 
 Safety nets: payments that land after a hold expired, or after the event was cancelled, are refunded automatically; a background job every 5 minutes settles checkouts whose webhooks never arrived.
+
+### Host payouts
+
+Hosts' Stripe accounts use a **manual** payout schedule, and the app decides when money moves from a host's Stripe balance to their bank (an hourly job pays each host at most once a day):
+
+| | New hosts (standard) | Trusted hosts |
+|---|---|---|
+| When they're paid | `PAYOUT_HOLD_DAYS_AFTER_EVENT` (2) days after each event | Daily, as soon as Stripe has cleared the money (about 3 days after a sale) |
+| Instant payouts | No | Yes: "Get paid now" on the Payouts page; arrives in about 30 minutes |
+
+Holding new hosts' money until after the event means that if an event is cancelled or a buyer is refunded, the money is still in the host's balance, rather than coming out of yours.
+
+**Becoming trusted:** automatically after `TRUSTED_HOST_MIN_EVENTS` (3) completed events with ticket sales, as long as the host hasn't cancelled an event with sales in the past year. You can override this for any host. On Render, open the service's **Shell** and run:
+
+```bash
+npm run host:tier -- host@example.com trusted    # daily + instant payouts
+npm run host:tier -- host@example.com standard   # always held until after events
+npm run host:tier -- host@example.com auto       # back to the automatic rule
+```
+
+**Instant payout fee:** Stripe charges the platform 1% (minimum 40p) for instant payouts. The app passes this on: it first moves the fee from the host's balance to yours (a Stripe *account debit*), then pays out the rest. If the payout fails, the fee is returned. If the fee can't be collected, no instant payout is made and the host is paid on the normal schedule. Test this in Stripe test mode before going live.
+
+**Note:** Stripe's own rules still apply: a new Stripe account's first payout can take up to 7 days, and Stripe may hold funds if it sees unusual activity.
 
 ### Setting up Stripe
 
@@ -117,6 +145,8 @@ src/
   stripe-payments.js  Stripe Checkout + Connect provider
   orders.js       Order lifecycle: hold seats, confirm, release, refund
   fees.js         Booking fee and commission calculation
+  payouts.js      When hosts are paid: held, daily and instant payouts
+  cli/host-tier.js  Set a host's payout tier (npm run host:tier)
   routes/
     auth.js       Register / login / logout
     events.js     Public listing, event page, checkout

@@ -39,3 +39,12 @@ services:
         value: "0"
       - key: PLATFORM_COMMISSION_PERCENT
         value: "0"
+      # Host payouts (see README "Host payouts").
+      - key: PAYOUT_HOLD_DAYS_AFTER_EVENT
+        value: "2"
+      - key: TRUSTED_HOST_MIN_EVENTS
+        value: "3"
+      - key: INSTANT_PAYOUT_FEE_PERCENT
+        value: "1"
+      - key: INSTANT_PAYOUT_MIN_FEE_PENCE
+        value: "40"

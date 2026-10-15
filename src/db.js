@@ -71,6 +71,20 @@ const MIGRATIONS = [
    UPDATE orders SET subtotal_cents = total_cents;
    CREATE UNIQUE INDEX idx_orders_checkout ON orders(checkout_session_id);
    CREATE INDEX idx_orders_pending ON orders(status, expires_at);`,
+  // 2: Payout policy per host, and a log of payouts the app has made.
+  `ALTER TABLE users ADD COLUMN payout_tier TEXT NOT NULL DEFAULT 'auto' CHECK (payout_tier IN ('auto', 'trusted', 'standard'));
+   ALTER TABLE users ADD COLUMN last_payout_run_at TEXT;
+   CREATE TABLE payouts (
+     id               INTEGER PRIMARY KEY,
+     host_id          INTEGER NOT NULL REFERENCES users(id),
+     stripe_payout_id TEXT NOT NULL UNIQUE,
+     amount_cents     INTEGER NOT NULL,
+     fee_cents        INTEGER NOT NULL DEFAULT 0,
+     method           TEXT NOT NULL CHECK (method IN ('standard', 'instant')),
+     arrival_date     TEXT,
+     created_at       TEXT NOT NULL DEFAULT (datetime('now'))
+   );
+   CREATE INDEX idx_payouts_host ON payouts(host_id, created_at);`,
 ];
 
 function migrate(db) {

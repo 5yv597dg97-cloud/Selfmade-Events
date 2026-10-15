@@ -87,6 +87,8 @@ export function createStripePayments({ secretKey, webhookSecret, client = new St
           email,
           capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
           business_profile: { product_description: 'Tickets for events I host' },
+          // The app decides when money is paid out (see src/payouts.js).
+          settings: { payouts: { schedule: { interval: 'manual' } } },
         });
         return account.id;
       },
@@ -100,6 +102,29 @@ export function createStripePayments({ secretKey, webhookSecret, client = new St
       },
       async dashboardUrl(accountId) {
         return (await client.accounts.createLoginLink(accountId)).url;
+      },
+      /** GBP balance in pence: `available` for standard payouts, `instantAvailable` for instant. */
+      async balance(accountId) {
+        const b = await client.balance.retrieve({}, { stripeAccount: accountId });
+        const gbp = (list) => (list ?? []).filter((x) => x.currency === CURRENCY).reduce((sum, x) => sum + x.amount, 0);
+        return { available: gbp(b.available), instantAvailable: gbp(b.instant_available) };
+      },
+      async payout(accountId, { amount, method, idempotencyKey, description }) {
+        const p = await client.payouts.create(
+          { amount, currency: CURRENCY, method, description },
+          { stripeAccount: accountId, idempotencyKey },
+        );
+        return { id: p.id, arrivalDate: p.arrival_date ? new Date(p.arrival_date * 1000).toISOString() : null };
+      },
+      /** Move a fee from the host's balance to the platform (an "account debit"). */
+      async collectFee(accountId, { amount, idempotencyKey, description }) {
+        const charge = await client.charges.create({ amount, currency: CURRENCY, source: accountId, description }, { idempotencyKey });
+        return charge.id;
+      },
+      /** Give a collected fee back to the host. */
+      async returnFee(accountId, { amount, idempotencyKey }) {
+        const transfer = await client.transfers.create({ amount, currency: CURRENCY, destination: accountId, description: 'Instant payout fee returned' }, { idempotencyKey });
+        return transfer.id;
       },
     },
   };

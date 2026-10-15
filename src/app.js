@@ -7,6 +7,7 @@ import { openDb } from './db.js';
 import { mockPayments } from './payments.js';
 import { NO_FEES } from './fees.js';
 import { createOrders } from './orders.js';
+import { createPayouts, DEFAULT_PAYOUT_CONFIG } from './payouts.js';
 import { SqliteSessionStore } from './session-store.js';
 import { loadUser, csrf, flash } from './middleware.js';
 import * as format from './format.js';
@@ -22,7 +23,9 @@ export function createApp({
   db = openDb(),
   payments = mockPayments,
   fees = NO_FEES,
+  payoutConfig = DEFAULT_PAYOUT_CONFIG,
   sweepIntervalMs = null,
+  payoutIntervalMs = null,
   sessionSecret = process.env.SESSION_SECRET ?? crypto.randomBytes(32).toString('hex'),
 } = {}) {
   const app = express();
@@ -35,8 +38,10 @@ export function createApp({
   app.locals.paymentsProvider = payments.name;
 
   const orders = createOrders({ db, payments });
+  const payouts = createPayouts({ db, payments, config: payoutConfig });
   if (sweepIntervalMs) setInterval(() => orders.sweep(), sweepIntervalMs).unref();
-  const ctx = { db, payments, fees, orders };
+  if (payoutIntervalMs) setInterval(() => payouts.runDue(), payoutIntervalMs).unref();
+  const ctx = { db, payments, fees, orders, payouts };
 
   app.get('/healthz', (req, res) => {
     db.prepare('SELECT 1').get();

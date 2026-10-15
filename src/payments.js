@@ -12,7 +12,8 @@ import { createStripePayments } from './stripe-payments.js';
  *   expireCheckout(sessionId)
  *   refund({ reference, amountCents }) -> { ok, error? }
  *   parseWebhook(rawBody, signature) -> event   (throws if the signature is invalid)
- *   hostAccounts               { create, onboardingUrl, status, dashboardUrl } when requiresHostAccount
+ *   hostAccounts               when requiresHostAccount: { create, onboardingUrl, status, dashboardUrl,
+ *                              balance, payout, collectFee, returnFee }
  */
 
 /** Approves everything instantly, so the app works end-to-end without credentials (development and tests). */

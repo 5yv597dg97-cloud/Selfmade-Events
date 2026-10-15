@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { transaction } from '../db.js';
 import { requireHost, appUrl } from '../middleware.js';
-import { parseCents, parseInputDateTime, toInputDateTime } from '../format.js';
+import { PayoutError } from '../payouts.js';
+import { money, parseCents, parseInputDateTime, toInputDateTime } from '../format.js';
 
 const MAX_TYPES = 10;
 
@@ -68,7 +69,7 @@ function formTypesFromRows(rows) {
   return rows.map((t) => ({ id: t.id, name: t.name, price: (t.price_cents / 100).toFixed(2), capacity: String(t.capacity), sold: t.sold }));
 }
 
-export default function hostRoutes({ db, payments }) {
+export default function hostRoutes({ db, payments, payouts }) {
   const router = Router();
   router.use(requireHost);
 
@@ -164,7 +165,8 @@ export default function hostRoutes({ db, payments }) {
   router.get('/payments', async (req, res, next) => {
     try {
       await refreshPayoutStatus(req.user);
-      res.render('host/payments', { title: 'Payouts', provider: payments.name, account: req.user });
+      const summary = await payouts.summary(req.user.id);
+      res.render('host/payments', { title: 'Payouts', provider: payments.name, account: req.user, summary });
     } catch (err) {
       next(err);
     }
@@ -212,6 +214,17 @@ export default function hostRoutes({ db, payments }) {
     } catch (err) {
       next(err);
     }
+  });
+
+  router.post('/payments/instant', async (req, res, next) => {
+    try {
+      const { amount, fee } = await payouts.instant(req.user.id);
+      req.flash('success', `Instant payout of ${money(amount)} sent (fee ${money(fee)}). It usually arrives within 30 minutes.`);
+    } catch (err) {
+      if (!(err instanceof PayoutError)) return next(err);
+      req.flash('error', err.message);
+    }
+    res.redirect('/host/payments');
   });
 
   router.post('/payments/dashboard', async (req, res, next) => {

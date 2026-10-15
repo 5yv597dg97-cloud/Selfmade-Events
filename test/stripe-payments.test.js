@@ -32,6 +32,15 @@ function stubClient() {
       createLoginLink: rec('accounts.createLoginLink', { url: 'https://connect.stripe.com/express/x' }),
     },
     accountLinks: { create: rec('accountLinks.create', { url: 'https://connect.stripe.com/setup/x' }) },
+    balance: {
+      retrieve: rec('balance.retrieve', {
+        available: [{ currency: 'gbp', amount: 5000 }, { currency: 'eur', amount: 999 }],
+        instant_available: [{ currency: 'gbp', amount: 4000 }],
+      }),
+    },
+    payouts: { create: rec('payouts.create', { id: 'po_1', arrival_date: 1792000000 }) },
+    charges: { create: rec('charges.create', { id: 'py_1' }) },
+    transfers: { create: rec('transfers.create', { id: 'tr_1' }) },
     webhooks: new Stripe('sk_test_dummy').webhooks,
   };
 }
@@ -122,4 +131,29 @@ test('fee configuration from environment', () => {
 test('free tickets carry no booking fee', () => {
   const p = priceOrder([{ type: { price_cents: 0 }, qty: 3 }], { bookingFeePercent: 5, bookingFeeFixedPence: 30, commissionPercent: 10 });
   assert.deepEqual(p, { subtotal: 0, bookingFee: 0, total: 0, commission: 0, applicationFee: 0, hostPayout: 0 });
+});
+
+test('host payouts: manual schedule, balance in pence, payouts and fees on the host account', async () => {
+  const client = stubClient();
+  const stripe = createStripePayments({ webhookSecret: 'whsec_x', client });
+  const call = (name) => client.calls.find((c) => c.name === name).args;
+
+  await stripe.hostAccounts.create({ email: 'host@example.co.uk' });
+  assert.deepEqual(call('accounts.create')[0].settings, { payouts: { schedule: { interval: 'manual' } } });
+
+  assert.deepEqual(await stripe.hostAccounts.balance('acct_1'), { available: 5000, instantAvailable: 4000 });
+  assert.deepEqual(call('balance.retrieve')[1], { stripeAccount: 'acct_1' });
+
+  const payout = await stripe.hostAccounts.payout('acct_1', { amount: 3900, method: 'instant', idempotencyKey: 'k1', description: 'd' });
+  assert.equal(payout.id, 'po_1');
+  assert.deepEqual(call('payouts.create'), [
+    { amount: 3900, currency: 'gbp', method: 'instant', description: 'd' },
+    { stripeAccount: 'acct_1', idempotencyKey: 'k1' },
+  ]);
+
+  await stripe.hostAccounts.collectFee('acct_1', { amount: 40, idempotencyKey: 'k2', description: 'Instant payout fee' });
+  assert.deepEqual(call('charges.create')[0], { amount: 40, currency: 'gbp', source: 'acct_1', description: 'Instant payout fee' });
+
+  await stripe.hostAccounts.returnFee('acct_1', { amount: 40, idempotencyKey: 'k3' });
+  assert.equal(call('transfers.create')[0].destination, 'acct_1');
 });
