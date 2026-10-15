@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { loadConfig } from './config.js';
-import { fetchSports } from './odds-api.js';
+import { fetchSports, fetchEvents as fetchEventList, fetchEventMarkets } from './odds-api.js';
 import { scan, currentFairProb } from './scanner.js';
 import { openStore, report } from './store.js';
 import { manualResult } from './settle.js';
@@ -214,6 +214,23 @@ async function main() {
       const chatId = cfg.telegramChatId || store.getMeta('chat_id');
       store.close();
       if (cfg.telegramToken && chatId) await telegram({ token: cfg.telegramToken, chatId }).send(text);
+    }
+    return;
+  }
+
+  if (command === 'props-check') {
+    // Lists the markets Pinnacle, the Betfair Exchange and your bookmakers have for the next few matches.
+    const books = ['pinnacle', 'betfair_ex_uk', ...cfg.books];
+    let checked = 0;
+    for (const sport of cfg.sports) {
+      const { data } = await fetchEventList({ apiKey: cfg.apiKey, sport });
+      for (const e of data.filter((x) => Date.parse(x.commence_time) > now.getTime()).slice(0, 2)) {
+        const res = await fetchEventMarkets({ apiKey: cfg.apiKey, sport, eventId: e.id, bookmakers: books });
+        console.log(`${e.home_team} v ${e.away_team} (credits left ${res.remaining}, this call cost ${res.last})`);
+        for (const b of res.data.bookmakers ?? []) console.log(`  ${b.key}: ${b.markets.map((m) => m.key).join(', ')}`);
+        if (!res.data.bookmakers?.length) console.log('  no bookmakers returned');
+        if (++checked >= 2) return;
+      }
     }
     return;
   }

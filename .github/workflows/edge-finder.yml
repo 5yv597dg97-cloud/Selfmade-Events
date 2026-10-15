@@ -9,7 +9,7 @@ on:
       mode:
         description: 'scan = the normal run; preview = every match today sent to Telegram; backtest = test the stats model on past seasons; trixie-test = replay a trixie a week'
         type: choice
-        options: [scan, preview, backtest, trixie-test]
+        options: [scan, preview, backtest, trixie-test, props-check]
         default: scan
       sports:
         description: 'For preview: competitions, e.g. soccer_uefa_champs_league or soccer_epl,soccer_spain_la_liga'
@@ -72,7 +72,9 @@ jobs:
           MODE: ${{ inputs.mode || 'scan' }}
           SPORTS: ${{ inputs.sports }}
         run: |
-          if [ "$MODE" = trixie-test ]; then
+          if [ "$MODE" = props-check ]; then
+            node --disable-warning=ExperimentalWarning src/cli.js props-check --sports "$SPORTS"
+          elif [ "$MODE" = trixie-test ]; then
             node --disable-warning=ExperimentalWarning src/cli.js trixie-test --telegram
           elif [ "$MODE" = backtest ]; then
             node --disable-warning=ExperimentalWarning src/cli.js backtest --telegram

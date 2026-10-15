@@ -31,6 +31,18 @@ export function fetchEvents({ apiKey, sport, fetchImpl = fetch }) {
   return get(`/sports/${sport}/events`, { apiKey, dateFormat: 'iso' }, fetchImpl);
 }
 
+/** Which markets each bookmaker has for one match (props like corners live here). */
+export function fetchEventMarkets({ apiKey, sport, eventId, bookmakers, fetchImpl = fetch }) {
+  return get(`/sports/${sport}/events/${eventId}/markets`, { apiKey, bookmakers: bookmakers.join(','), dateFormat: 'iso' }, fetchImpl);
+}
+
+/** Odds for any markets on one match, including props. Costs per market returned. */
+export function fetchEventOdds({ apiKey, sport, eventId, bookmakers, markets, fetchImpl = fetch }) {
+  return get(`/sports/${sport}/events/${eventId}/odds`, {
+    apiKey, bookmakers: bookmakers.join(','), markets, oddsFormat: 'decimal', dateFormat: 'iso',
+  }, fetchImpl);
+}
+
 export function fetchScores({ apiKey, sport, daysFrom = 3, fetchImpl = fetch }) {
   return get(`/sports/${sport}/scores`, { apiKey, daysFrom: String(daysFrom), dateFormat: 'iso' }, fetchImpl);
 }
